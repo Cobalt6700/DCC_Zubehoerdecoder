@@ -1,17 +1,17 @@
-/* Interface des Zubehördecoders
-** Alle Interface-abhängigen ( Loconet oder DCC ) Programmkomponenten werden hier
-** zusammengefasst, und neutrale Aufrufe für die Funktionalitäten im Sketch zur Verfügung gestellt.
+/*Accessory decoder interface
+**All interface-dependent (Loconet or DCC) program components are listed here
+**summarized, and neutral calls for the functionalities in the sketch are provided.
 */
 #include "../Interface.h"
 #include "DebugDefs.h"
 #ifdef LOCONET
-// --------------- Loconet-Interface -------------------------------------------------
+//---------------Loconet interface -------------------------------------------------
 #if defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega32U4__)
 #include <LocoNet.h>
 typedef enum {
-    CV29_EXT_ADDRESSING      = 0b00100000,	/** bit 5: "0" = one byte addressing, "1" = two byte addressing */
-    CV29_OUTPUT_ADDRESS_MODE = 0b01000000,	/** bit 6: "0" = Decoder Address Mode "1" = Output Address Mode */
-    CV29_ACCESSORY_DECODER   = 0b10000000,	/** bit 7: "0" = Multi-Function Decoder Mode "1" = Accessory Decoder Mode */
+    CV29_EXT_ADDRESSING      = 0b00100000,	/**bit 5: "0" = one byte addressing, "1" = two byte addressing*/
+    CV29_OUTPUT_ADDRESS_MODE = 0b01000000,	/**bit 6: "0" = Decoder Address Mode "1" = Output Address Mode*/
+    CV29_ACCESSORY_DECODER   = 0b10000000,	/**bit 7: "0" = Multi-Function Decoder Mode "1" = Accessory Decoder Mode*/
 } CV_29_BITS;
 const uint8_t cvAccDecAddressLow   = 17;
 const uint8_t cvAccDecAddressHigh  = 18;
@@ -28,10 +28,10 @@ boolean     deferredProcessingNeeded = false;
 
 
 void ifc_init( uint8_t version, uint8_t progMode, uint8_t cvPomLow ) {
-    // DB_PRINT("Loconet-Init %d",0);
+//DB_PRINT("Loconet Init %d",0);
     LocoNet.init(txPin); 
-    // DB_PRINT("Loconet-Init %d",1);
-    sv.init(13, 4, 1, version ); // ManufacturerId, DeviceId, ProductId, SwVersion
+//DB_PRINT("Loconet Init %d",1);
+    sv.init(13, 4, 1, version );//ManufacturerId, DeviceId, ProductId, SwVersion
     sv.writeSVStorage(SV_ADDR_NODE_ID_H, sv.readSVStorage( cvPomLow+1 ) );
     sv.writeSVStorage(SV_ADDR_NODE_ID_L, sv.readSVStorage( cvPomLow ));
 
@@ -49,17 +49,17 @@ void ifc_process() {
     SV_STATUS svStatus;
     static boolean  deferredProcessingNeeded = false;
     LnPacket = LocoNet.receive() ;
-    //DB_PRINT("LN-Package = %04x", LnPacket);
+//DB_PRINT("LN package = %04x", LnPacket);
     if( LnPacket ) {
         #ifdef DEBUG 
         #warning " LocoNet debugging aktiv"
-        // First print out the packet in HEX
+//First print out the packet in HEX
         Serial.print("RX: ");
         uint8_t msgLen = getLnMsgSize(LnPacket); 
         for (uint8_t x = 0; x < msgLen; x++)
         {
           uint8_t val = LnPacket->data[x];
-          // Print a leading 0 if less than 16 to make 2 HEX digits
+//Print a leading 0 if less than 16 to make 2 HEX digits
           if(val < 16)
             Serial.print('0');        
           Serial.print(val, HEX);
@@ -69,7 +69,7 @@ void ifc_process() {
         #endif  
         
         
-        // If this packet was not a Switch or Sensor Message checks for SV packet
+//If this packet was not a Switch or Sensor Message checks for SV packet
         if(!LocoNet.processSwitchSensorMessage(LnPacket)) {      
             svStatus = sv.processMessage(LnPacket);
             deferredProcessingNeeded = (svStatus == SV_DEFERRED_PROCESSING_NEEDED);
@@ -107,7 +107,7 @@ void notifySVChanged(uint16_t Offset){
 #endif
 
 #else
-// --------------- DCC-Interface -------------------------------------------------
+//---------------DCC interface -------------------------------------------------
 
 #include <NmraDcc.h>
 NmraDcc Dcc;
@@ -122,17 +122,17 @@ const uint8_t config29AddrMode      = CV29_OUTPUT_ADDRESS_MODE;
 const uint8_t manIdValue            = MAN_ID_DIY;
 
 void ifc_init( uint8_t version, uint8_t progMode, uint8_t cvPomLow ) {
-    // nmra-Dcc Lib initiieren
+//Initiate nmra-Dcc Lib
     _pinMode( ackPin, OUTPUT );
     _digitalWrite( ackPin, LOW );
 
     Dcc.pin( digitalPinToInterrupt(dccPin), dccPin, 1); 
     if ( progMode == NORMALMODE || progMode == INIMODE ) {
-        // keine POM-Programmierung
+//no POM programming
         Dcc.init( MAN_ID_DIY, version, FLAGS_DCC_ACCESSORY_DECODER | FLAGS_OUTPUT_ADDRESS_MODE, (uint8_t)((uint16_t) 0) );
         CLR_PROGLED;
     } else {
-        // POM Programmierung aktiv
+//POM programming active
         Dcc.init( MAN_ID_DIY, version, FLAGS_DCC_ACCESSORY_DECODER | FLAGS_OUTPUT_ADDRESS_MODE, (uint8_t)(cvPomLow) );
         SET_PROGLED;
     }
@@ -151,7 +151,7 @@ uint16_t ifc_getAddr(){
     #if defined(NMRADCC_VERSION) && NMRADCC_VERSION >= 200
     return Dcc.getAddr(); 
     #else 
-    // wegen Fehler in älteren Versionen der Lib bei Adressen>255, die Adresse selbst berechenen
+//due to errors in older versions of the Lib with addresses>255, calculate the address yourself
     uint8_t CV29Value = Dcc.getCV( CV_29_CONFIG ) ; 
 
     if( CV29Value & CV29_OUTPUT_ADDRESS_MODE ) 
@@ -164,15 +164,15 @@ uint16_t ifc_getAddr(){
 void ifc_process() {
     Dcc.process();
 }
-// --- Callback-routinen
+//---Callback routines
 void notifyDccAccTurnoutOutput( uint16_t Addr, uint8_t Direction, uint8_t OutputPower ) {
-    // mehrere gleiche Telegramme nicht weiterleiten ( vereinfacht debugging)
+//do not forward several identical telegrams (simplifies debugging)
     static uint16_t lastAddr;
     static uint8_t lastDir;
     static uint8_t lastOp;
     if ( lastAddr!=Addr||lastDir!=Direction||lastOp!=OutputPower ) {
         DB_PRINT("Outout: OAddr=%d Dir=%d, OPow=%d", Addr, Direction, OutputPower );
-        //ifc_notifyDccAccState( Addr, BoardAddr, OutputAddr, State );
+//ifc_notifyDccAccState( Addr, BoardAddr, OutputAddr, State );
         ifc_notifyDccAccState( Addr, Direction, OutputPower );
         lastAddr=Addr; lastDir=Direction; lastOp=OutputPower;
     }

@@ -48,8 +48,8 @@
      <!-- This sets a single JMRI-style composite address in two CVs  -->
       <variable CV="48" comment="Board SV address" item="Long Address" default="255">
         <splitVal highCV="49" upperMask="XXXXXVVV"/>
-        <label>Lange Adresse</label>
-        <tooltip>Lange 14-Bit Adresse \n\r Wird erst nach einem Reset des Decoders aktiv</tooltip>
+        <label>Long address</label>
+        <tooltip>Long 14-bit address \n\r Only becomes active after a decoder reset</tooltip>
       </variable>
 
      <variable CV="CV_Version" item="Decoder Version" >
@@ -64,34 +64,34 @@
 
      <variable item="Betriebsparameter1" CV="47">
         <hexVal/>
-        <label>Betriebsart: </label>
+        <label>Operating mode: </label>
       </variable>
       <variable item="Betriebsparameter1Bit7-4" CV="47" mask="VVVVXXXX">
         <hexVal/>
 #if ( _INTERFACE == DCC )
-        <label>   CV-gültig-Flag(0x6):  </label>
+        <label>   CV-valid-Flag(0x6):  </label>
 #else
-        <label>   SV-gültig-Flag(0x6):  </label>
+        <label>   SV-valid-Flag(0x6):  </label>
 #endif
       </variable>
       <variable item="Betriebsparameter1Bit0" CV="47" mask="XXXXXXXV">
         <hexVal/>
         <label>AutoAdress: </label>
-        <tooltip>Wenn dieses Bit gesetzt ist, wird im Prog-Modus die 1. empfangene Adresse als Startadresse übernommen  </tooltip>
+        <tooltip>If this bit is set, the 1st received address is adopted as the start address in Prog mode  </tooltip>
       </variable>
       <variable item="Betriebsparameter2" CV="48">
         <splitVal highCV="49" />
 #if ( _INTERFACE == DCC )
-        <label> PoM-Adresse: </label>
+        <label> PoM-address: </label>
 #else
         <label>  LocoNet ID: </label>
 #endif
-        <tooltip>Änderung gilt ab nächstem Reset</tooltip>
+        <tooltip>The change applies from the next reset</tooltip>
       </variable>
       <variable item="Betriebsparameter3" CV="CV_WadrLow">
         <splitVal highCV="CV_WadrHigh"  upperMask="XXVVVVVV" />
-        <label>    1. Weichenadresse: </label>
-        <tooltip>Änderung gilt sofort</tooltip>
+        <label>    1. Switch address: </label>
+        <tooltip>Changes apply immediately</tooltip>
       </variable>
       
       <!-- Variable für Funktion 1 -->
@@ -153,7 +153,7 @@
         <griditem  ipadx="10" ipady="10" gridx="0" gridy="0" gridwidth="REMAINDER" >
           <column>
             <separator/>
-            <label> <text>             allg. Betriebsparameter               </text> </label>
+            <label> <text>          general operating parameters             </text> </label>
             <label> <text>                                                   </text> </label>
           </column>
         </griditem>
@@ -176,7 +176,7 @@
             <column>
             <label> <text>                                               </text>  </label>
             <separator/>
-            <label> <text>              Funktionsparameter               </text>  </label>
+            <label> <text>              Function parameters              </text>  </label>
             <label> <text>                                               </text>  </label>
            </column>
       </griditem>
@@ -221,7 +221,7 @@
             <column>
             <label> <text>                                               </text>  </label>
             <separator/>
-            <label> <text>              Funktionsparameter               </text>  </label>
+            <label> <text>              Function parameters              </text>  </label>
             <label> <text>                                               </text>  </label>
            </column>
       </griditem>

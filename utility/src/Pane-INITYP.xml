@@ -20,7 +20,7 @@
   <!-- ^^^^^^^^^^^Ende FSERVO ^^^^^^^^^^^^^^^^ -->
 #elif ( INITYP == FCOIL )
   <column>
-    <label>  <text> Spulenantrieb (FNR)  </text>  </label>
+    <label>  <text> Coil drive (FNR)  </text>  </label>
 
   <!-- ^^^^^^^^^^^Ende FCOIL ^^^^^^^^^^^^^^^^ -->
 #elif ( INITYP == FSIGNAL2 )
@@ -34,7 +34,7 @@
   <!-- ^^^^^^^^^^^Ende FSIGNAL0 ^^^^^^^^^^^^^^^^ -->
 #elif ( INITYP == FVORSIG )
   <column>
-    <label> <text> Vorsignal (FNR)  </text>  </label>
+    <label> <text> Distantignal (FNR)  </text>  </label>
 
   <!-- ^^^^^^^^^^^Ende FVORSIG ^^^^^^^^^^^^^^^^ -->
 #else
