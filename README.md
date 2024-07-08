@@ -1,6 +1,8 @@
 # DCC_Zubehoerdecoder
 ### A universal Dcc Accessory-Decoder for Arduino based on NmraDcc and MoBaTools Lib. 
 
+## This is currently being modified to work with an ATTiny3226. This requires my fork of MoBaTools to work.  
+
 It is able to control servos, double coil motors and leds. Most characteristics are CV configurable. 
 
 Overview of the adjustable functionality:
