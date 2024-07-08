@@ -30,6 +30,19 @@ Assignment of the output states to the signal state can be configured.
 
 // CONFIG FILE DEFINES HERE
 
+// #define KONFIG_FILE "Signals/DCC_Zubehoerdecoder-LS-3led-megaavr.h"
+// #define KONFIG_FILE "Signals/DCC_Zubehoerdecoder-LS-2x2led-1servo-megaavr.h"
+// #define KONFIG_FILE "Signals/DCC_Zubehoerdecoder-LS-2led-megaavr.h"
+//#define KONFIG_FILE "Signals/DCC_Zubehoerdecoder-LS-3led-attiny.h"
+// #define KONFIG_FILE "examples/DCC_Zubehoerdecoder-LS-Nano.h"
+
+// #define KONFIG_FILE "../../MoBaTool/config_files/signals/headers/DCC_Zubehoerdecoder-LS-3led-attiny.h"
+#define KONFIG_FILE "../../MoBaTool/config_files/signals/headers/DCC_Zubehoerdecoder-LS-3led-1servo-attiny.h"
+
+#define DEBUG_GTI
+#define SIGNALDBG
+
+
 #include "src/FuncClasses.h"
 #ifdef __AVR_MEGA__
 #include <avr/wdt.h>    //for soft reset (via watchdog)
@@ -205,7 +218,7 @@ void setup() {
     #endif
     
     _pinMode( modePin, OUTPUT );
-    #if (defined DEBUG) || (defined IFC_SERIAL)
+    #if (defined DEBUG) || (defined IFC_SERIAL) || (defined DEBUG_GTI)
     #ifndef SERIAL_BAUD
     #define SERIAL_BAUD 115200
     #endif
@@ -217,7 +230,7 @@ void setup() {
         }
         #endif
     #endif
-    #if (defined DEBUG)
+    #if (defined DEBUG) || (defined DEBUG_GTI)
     #warning "Debugging ist aktiv"
         #ifdef LOCONET
            DB_PRINT(  ">>>>>>>>>> Neustart: (SV45/47): 0x%x 0x%x ", ifc_getCV( CV_INIVAL ), ifc_getCV( CV_MODEVAL ) );

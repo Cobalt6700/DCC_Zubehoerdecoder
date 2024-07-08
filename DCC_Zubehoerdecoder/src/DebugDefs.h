@@ -11,7 +11,7 @@
 
 #ifdef __AVR_MEGA__
 
-#ifdef DEBUG
+#ifdef DEBUG || (defined DEBUG_GTI)
     #define DB_PRINT( x, ... ) { char dbgbuf[60];sprintf_P( dbgbuf, (const char*) F( x ), ##__VA_ARGS__ ) ; Serial.println( dbgbuf ); }
     #define DB_PRINT_( x, ... ) { char dbgbuf[60];sprintf_P( dbgbuf, (const char*) F( x ), ##__VA_ARGS__ ) ; Serial.print( dbgbuf ); }
     // #ifdef __AVR_MEGA__

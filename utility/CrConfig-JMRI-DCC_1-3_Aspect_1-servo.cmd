@@ -1,26 +1,26 @@
 ﻿@echo off
-rem Please don't delete any lines, just adjust the value after the =
-rem There cannot be spaces after the values
-rem model name of the decoder in JMRI (letters, numbers and _):
-set model=DIY_Standard
-Rem Interface: DCC or LocoNet. LocoNet is standard
+rem Bitte keine Zeilen lösche, nur den Wert hinter dem = anpassen
+rem Hinter den Werten dürfen keine Leerzeichen stehen
+rem Modell-Name des Decoders in JMRI ( Buchstaben,Zahlen und _ ):
+set model=1-3_Aspect_1-servo
+rem Interface: DCC oder LocoNet. LocoNet ist standard
 set interface=DCC
-rem configuration of the decoder (functions):
-rem There should be no gaps. Unused functions remain free at the end
-set INITYP1=FSTATIC
-set INITYP2=FSERVO
-set INITYP3=FSIGNAL2
-set INITYP4=FSIGNAL0
-set INITYP5=FVORSIG
-set INITYP6=FCOIL
+rem Konfiguration des Decoders (Funktionen):
+rem Es dürfen keine Lücken entstehen. Nicht verwendete Funktionen bleiben am Ende frei
+set INITYP1=FSIGNAL2
+set INITYP2=FSIGNAL0
+set INITYP3=FSERVO
+set INITYP4=
+set INITYP5=
+set INITYP6=
 set INITYP7=
 set INITYP8=
 set INITYP9=
 set INITYP10=
 set INITYP11=
 set INITYP12=
-rem ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-rem ------------End of the user-customizable area ---------------------------------
+rem ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+rem ------------ Ende des Benutzeranpassbaren Bereiches ---------------------------------
 
 echo #define _MODEL %model%> %model%.txt
 echo #define _INTERFACE %interface%>> %model%.txt
@@ -37,5 +37,5 @@ echo #define INITYP10 %INITYP10%>>  %model%.txt
 echo #define INITYP11 %INITYP11%>>  %model%.txt
 echo #define INITYP12 %INITYP12%>>  %model%.txt
 gpp -s "\"" +n  --include %model%.txt  -I .\src  -o Public_Domain_%interface%_%model%.xml src\Public_Domain_GPP-Generic.gpp
-rem break
+rem pause
 del %model%.txt
