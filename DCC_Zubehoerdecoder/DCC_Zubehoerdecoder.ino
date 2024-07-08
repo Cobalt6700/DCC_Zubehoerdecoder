@@ -1,76 +1,77 @@
-/* Universeller DCC-Decoder für Weichen und (Licht-)Signale
-    Version 7.0.0 - Die Funktionalitäten sind als Klassen definiert 
-    Die Klassenobjekte werden erst im Setup je nach Konfiguration instanziiert
-    
-   Eigenschaften:
-   Mehrere (aufeinanderfolgende) Zubehöradressen ansteuerbar
-   Die max. Zahl der Adressen hängt im Wesentlichen von der Zahl der Digitalausgänge ab
-   (max 16 Servos sind konfigurierbar)
-   1. Adresse per Programmierung einstellbar
-   
-   3 Ausgänge / Zubehöradresse
-   Einstellbare Funktionalität:
-    - Servo mit Umschaltrelais zur Weichenpolarisierung
-    - logische Kopplung von 2 Servos für 3-begriffige Formsignale
-    - 1 Servo über 2 Adressen um 4 Positionen anzusteuern
-    - 2 Servo über eine Adresse ( Parallelansteuerunmg von Servos )
-    - Impulsfunktion für Servos ( automatisches Rückkehren in Ausgangslage,
-      z.B. für Entkuppler )
-    - Doppelspulenantriebe
-    - statische Ausgänge
-    - blinkende Ausgänge
-    - Lichtsignalfunktionen
-    
-    Die Funnktionalität und IO-Zuordnung wird über Tabellen im h-File festgelegt.
-    Die Konfiguration der einzelnen Funktionen geschieht über CV-Programmierung.
-    So sind z.B. bei Servoausgängen die Endlagen per CV-Wert einstellbar, bei Lichtsignalen ist die 
-    Zuordnung der Ausgangszustände zum Signalzustand frei konfigurierbar.
+/*Universal DCC decoder for switches and (light) signals
+Version 7.0.0 -The functionalities are defined as classes
+The class objects are only instantiated in setup depending on the configuration
+
+Characteristics:
+Several (successive) accessory addresses can be controlled
+The maximum number of addresses essentially depends on the number of digital outputs
+(max 16 servos can be configured)
+1. Address adjustable via programming
+
+3 outputs /accessory address
+Adjustable functionality:
+-Servo with switching relay for turnout polarization
+-Logical coupling of 2 servos for 3-aspect form signals
+-1 servo via 2 addresses to control 4 positions
+-2 servos via one address (parallel control of servos)
+-Impulse function for servos (automatic return to initial position,
+e.g. for uncouplers)
+-Double coil drives
+-static outputs
+-flashing outputs
+-Light signal functions
+
+The functionality and IO assignment is determined via tables in the h-file.
+The configuration of the individual functions is done via CV programming.
+For example, for servo outputs the end positions can be set using a CV value; for light signals this is
+Assignment of the output states to the signal state can be configured.
 */
 #define DCC_DECODER_VERSION_ID 0x71
 
+// CONFIG FILE DEFINES HERE
+
 #include "src/FuncClasses.h"
 #ifdef __AVR_MEGA__
-#include <avr/wdt.h>    // für Soft-Reset ( über Watchdog )
+#include <avr/wdt.h>    //for soft reset (via watchdog)
 #endif
 
-//------------------------------------------ //
+//------------------------------------------//
 
 
 #ifdef __STM32F1__
-    // ist jetzt im core definiert: #define digitalPinToInterrupt(x) x
-    #define MODISTEP    4096/6      // Grenzwerte am Analogeingang der Betriebsmodi
+//is now defined in core: #define digitalPinToInterrupt(x) x
+    #define MODISTEP    4096/6//Limit values ​​at the analog input of the operating modes
 #else
     #define MODISTEP    1024/6
 #endif
 #define uint_t unsigned int
 
 
-// Grenzwerte des Analogeingangs für die jeweiligen Betriebsmodi ( gesamter Bereich 0...1024):
-#define ISNORMAL    MODISTEP*5          // > 853 gilt als normalbetrieb
-#define ISPOM       MODISTEP*3          // <853,  >512 Allway Pom
-#define ISOPEN      MODISTEP            // <512, >170 IniMode: alle Funktionsparameter beim Start initiieren
-#define ISPROG      0                   // <170 Programmiermodus (Adresserkennung)
-
-// Mögliche Funktionstypen je Ausgang. 
-#define FOFF        0 // Funktionsausgang abgeschaltet
-#define FSERVO      1 // Standardservoausgang 
-#define FCOIL       2 // Magnetartikel
-#define FSTATIC     3 // Der Ausgang wird statisch/blinkend ein bzw ausgeschaltet
-#define FSIGNAL0    4 // Folgeadresse für Signale
-#define FSIGNAL2    5 // 1. Signaladresse 
-#define FVORSIG     6 // 1. Vorsignaladresse
-#define FSERVO0     7 // Folgeadresse bei 2 gekoppelten Servos
-#define F2SERVO     8 // Klasse zur Steuerung von 2 Servos über eine Adresse
-#define FSTATIC3    9 // 3 Ausgänge können statisch/blinkend ein bzw ausgeschaltet werden
+//Limit values ​​of the analog input for the respective operating modes (entire range 0...1024):
+#define ISNORMAL    MODISTEP*5//> 853 is considered normal operation
+#define ISPOM       MODISTEP*3//<853, >512 Allways Pom
+#define ISOPEN      MODISTEP//<512, >170 IniMode: initiate all function parameters at startup
+#define ISPROG      0//<170 programming mode (address recognition)
+//Possible function types per output.
+#define FOFF        0//Function output switched off
+#define FSERVO      1//Standard servo output
+#define FCOIL       2//Magnetic items
+#define FSTATIC     3//The output is switched on or off statically/flashing
+#define FSIGNAL0    4//Follow-up address for signals
+#define FSIGNAL2    5//1. Signal address
+#define FVORSIG     6//1. distant signal address
+#define FSERVO0     7//Follow-up address for 2 coupled servos
+#define F2SERVO     8//Class for controlling 2 servos via one address
+#define FSTATIC3    9//3 outputs can be switched on or off statically/flashing
 #define FMAX        9  
 
-//---------------------------------------
-//Flags für iniMode:
-#define AUTOADDR    1   // Automatische Addresserkennung nach Erstinitiierung oder wenn Programmiermodus aktiv
-#define ROCOADDR    2   // 0: Outputadresse 4 ist Weichenadress 1
-                        // 1: Outputadresse 0 ist Weichenadress 1
-//-----------------------------------------
-//------------------ Einbinden der Konfigurationsdatei -------------------------
+//--------------------------------------
+//Flags for iniMode:
+#define AUTOADDR    1//Automatic address recognition after initial initiation or when programming mode is active
+#define ROCOADDR    2//0: Output address 4 is switch address 1
+//1: Output address 0 is switch address 1
+//------------------------------------------------------
+//------------------Incorporating the configuration file ------------------------
 #ifdef __STM32F1__
   #include "DCC_Zubehoerdecoder-STM32.h"
   #ifndef KONFIG_FILE
@@ -103,7 +104,7 @@ const byte weichenZahl = sizeof(iniTyp);
 #define cvEAdr(wIx,epar)    CV_EXTDATA+epar+CV_ERWLEN*wIx  
 #define getCvExtPar(wIx,epar) ifc_getCV( cvEAdr(wIx,epar) )
 
-// CV Default-Werte der Standardadressen:
+//CV default values ​​of the standard addresses:
 struct CVPair {
   uint16_t  CV;
   uint8_t   Value;
@@ -117,24 +118,23 @@ CVPair FactoryDefaultCVs [] =
   {cv29Config, config29Value},
 };
 
-// ----------------------- Variable ---------------------------------------------------
-byte opMode;                    // Bit 0..3 aus modeVal
-byte rocoOffs;                  // 4 bei ROCO-Adressierung, 0 sonst
-//byte isOutputAddr=1;            // Flag ob Output-Adressing ab 6.1 immer Ouptu-Adressind
-word weichenAddr;               // Addresse der 1. Weiche (des gesamten Blocks)
-byte ioPins[PPWA*weichenZahl];  // alle definierten IO's in einem linearen Array
-
-// Struktur für 2 Servos an einer Adresse ( F2SERVO )
+//----------------------Variable -------------------------------------------------
+byte opMode;//Bit 0..3 from modeVal
+byte rocoOffs;//4 for ROCO addressing, 0 otherwise
+//byte isOutputAddr=1;            //Flag whether output addressing from 6.1 is always Ouput address
+word weichenAddr;//Address of the 1st switch (of the entire block)
+byte ioPins[PPWA*weichenZahl];//all defined IO's in a linear array
+//Structure for 2 servos at one address (F2SERVO)
 typedef struct {
     Fservo  *servo1;
-    byte    pins1[3];       // Pinzuordnung für 1. Servo
+    byte    pins1[3];//Pin assignment for 1st servo
     Fservo  *servo2;
-    byte    pins2[3];       // Pinzuordnung für 2.Servo
+    byte    pins2[3];//Pin assignment for 2nd servo
 } F2Servo_t;
 
-// Pointer auf die Funktionsobjekte
-union { // für jede Klasse gibt es ein Array, die aber übereinanderliegen, da pro Weichenadresse
-        // nur ein Objekt möglich ist
+//Pointer to the function objects
+union {//There is an array for each class, but they are on top of each other because they are per switch address
+//only one object is possible
     F2Servo_t  *twoServo[weichenZahl];
     Fservo  *servo[weichenZahl];
     Fcoil   *coil[weichenZahl];    
@@ -142,82 +142,82 @@ union { // für jede Klasse gibt es ein Array, die aber übereinanderliegen, da 
     Fsignal *sig[weichenZahl];
 }Fptr;    
 
-Fservo *AdjServo = NULL ;   // Pointer auf zu justierenden Servo
-// Typkennung für verbundene Adressen (Adressen mit Folgeeinträgen bei Servos oder Lichtsignalen
-// Diese Kennung wird immer nur bei der Grundadresse eingetragen
-enum combine_t:byte { NOCOM,        // keine Folgeadresse vorhanden, Defaultwert
-                      SERVO4POS,    // Servo mit 4 Positionen
-                      SERVO_DOUBLE, // 2 verbundene Servos
-                      SIGNAL2ADR,   // Lichtsignal mit 4 Signalbildern
-                      SIGNAL3ADR }; // Lichtsignal mit 6 Signalbildern
+Fservo *AdjServo = NULL ;//Pointer to servo to be adjusted
+//Type identifier for connected addresses (addresses with subsequent entries for servos or light signals
+//This identifier is only ever entered at the basic address
+enum combine_t:byte { NOCOM,//no following address available, default value
+                      SERVO4POS,//Servo with 4 positions
+                      SERVO_DOUBLE,//2 connected servos
+                      SIGNAL2ADR,//Light signal with 4 signal images
+                      SIGNAL3ADR };//Light signal with 6 signal images
 combine_t adressTyp[weichenZahl];
 ;
-byte progMode;      // Merker ob Decoder im Programmiermodus
-// -------- Encoderauswertung ----- Justierung der Servoendlage -----------------------------
+byte progMode;//Flag whether decoder is in programming mode
+//--------Encoder evaluation -----Adjustment of the servo end position -----------------------------
 # ifdef ENCODER_AKTIV
-// Die zuletzt empfangene Weichenposition kann per Encoder justiert werden. 
-// Die Werte werden gespeichert, sobald eine ander Weichenposition empfangen wird.
-byte adjWix;        // Weichenindex, der z.Z. vom Encoder beeinflusst wird.
-byte adjPos;        // Position des Servo, das vom Encoder beeiflusst wird
-byte adjPulse;      // per Encoder aktuell eingestellte Servoposition
-#define NO_ADJ 255  // Wert von adjPulse solange keine Änderung erfolgt ist
+//The last received switch position can be adjusted using an encoder.
+//The values ​​are saved as soon as another switch position is received.
+byte adjWix;//Switch index, which is currently is influenced by the encoder.
+byte adjPos;//Position of the servo influenced by the encoder
+byte adjPulse;//Servo position currently set via encoder
+#define NO_ADJ 255//Value of adjPulse as long as no change has occurred
 #endif
-bool localCV;       // lokale Änderung eines CV (Callback NotifyCV wird dann nicht ausgeführt )
-//---- Library-Objekte ----
+bool localCV;//local change to a CV (callback NotifyCV is then not executed)
+//----Library objects ----
 MoToTimer AckImpuls;
-MoToTimer ledTimer;  // zum Blinken der Programmierled
+MoToTimer ledTimer;//to flash the programming LED
 #ifdef LOCONET
-// Bei der Loconet-Schnittstelle wird 2Sec nach Ändern der 'Pom' Adresse ein Reset ausgeführt, wobei
-// die Pom-Adress als Loconet ID übernommen wird. Die Zeitverzögerung ist erforderlich, damit Low- und High
-// Byte geschrieben werden können, bevor der Reset ausgeführt wird. Die Zeit startet, wenn eins der beiden
-// Byte geschrieben wird.
+//With the Loconet interface, a reset is carried out 2 seconds after the 'Pom' address is changed, whereby
+//the Pom address is adopted as the Loconet ID. The time delay is required for low and high
+//Bytes can be written before the reset is carried out. The time starts when one of the two
+//byte is written.
 bool chgLoconetId = false;
 MoToTimer idLoconet;
 #endif
 
-//^^^^^^^^^^^^^^^^^^^^^^^^ Ende der Definitionen ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-//###########################################################################
+//^^^^^^^^^^^^^^^^^^^^^^^^ End of definitions ^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^
+//################################################## #########################
 
 void setup() {
     boolean iniFlg = false;
 #ifdef __STM32F1__
-   disableDebugPorts();     // JTAG und SW Ports freigeben
+   disableDebugPorts();//Enable JTAG and SW ports
 #endif
     #ifdef FIXMODE
     progMode = FIXMODE;
     int temp = -1;
     #else
-    // Betriebsart auslesen
+//Read operating mode
     int temp = analogRead( betrModeP );
     if ( temp > ISNORMAL ) {
-        // Normalbetrieb
+//Normal operation
         progMode = NORMALMODE;
     } else if ( temp > ISPOM ) {
-        // PoM immer aktiv 
+//PoM always active
         progMode = POMMODE;
     } else if ( temp > ISOPEN ) {
-        // IniMode - GrundCV's werden immer initiiert
+//IniMode -Basic CV's are always initiated
         progMode = INIMODE;
     } else {
-        // Programmiermodus, automatische Adresserkennung
+//Programming mode, automatic address recognition
         progMode = ADDRMODE;
     }
     #endif
     
     _pinMode( modePin, OUTPUT );
-    #if (defined DEBUG) || (defined IFC_SERIAL) 
+    #if (defined DEBUG) || (defined IFC_SERIAL)
     #ifndef SERIAL_BAUD
     #define SERIAL_BAUD 115200
     #endif
-    Serial.begin(SERIAL_BAUD); //Debugging und/oder serielles Kommand-Interface
+    Serial.begin(SERIAL_BAUD);//Debugging and/or serial command interface
         #if defined(__STM32F1__) || defined(__AVR_ATmega32U4__) 
-        // auf STM32/ATmega32u4: warten bis USB aktiv (maximal 6sec)
+//on STM32/ATmega32u4: wait until USB is active (maximum 6sec)
         {  unsigned long wait=millis()+6000;
            while ( !Serial && (millis()<wait) );
         }
         #endif
     #endif
-    #ifdef DEBUG
+    #if (defined DEBUG)
     #warning "Debugging ist aktiv"
         #ifdef LOCONET
            DB_PRINT(  ">>>>>>>>>> Neustart: (SV45/47): 0x%x 0x%x ", ifc_getCV( CV_INIVAL ), ifc_getCV( CV_MODEVAL ) );
@@ -243,11 +243,11 @@ void setup() {
           Serial.println( "??" );
           
       }
-    #endif // Ende #ifdef DEBUG
+    #endif//End #ifdef DEBUG
 
-    //-------------------------------------
-    // CV's initiieren
-    // Prüfen ob die Funktionsbytes ab CV_INITYP korrekt sind
+//--------------------------------------
+//Initiate CV's
+//Check whether the function bytes starting from CV_INITYP are correct
     if ( ifc_getCV( CV_ADRZAHL ) != weichenZahl )  {
         iniFlg = true;
     } else {
@@ -257,85 +257,85 @@ void setup() {
             }
         }
     }
-    //In V7 wird kein ValidFlg geprüft, sondern nur ob die HW-spezifischen CV's den Konfig-Werten entsprechen
-    //if ( (ifc_getCV( CV_MODEVAL )&0xf0) != VALIDFLG || ifc_getCV(CV_INIVAL) != VALIDFLG || analogRead(resModeP) < 100 || (ifc_getCV(cvVersionId) < 0x70 ) ) {
+//In V7 no ValidFlg is checked, only whether the HW-specific CV's correspond to the config values
+//if ( (ifc_getCV( CV_MODEVAL )&0xf0) != VALIDFLG || ifc_getCV(CV_INIVAL) != VALIDFLG || analogRead(resModeP) < 100 || (ifc_getCV(cvVersionId) < 0x70 ) ) {
     if ( iniFlg || analogRead(resModeP) < 100 || (ifc_getCV(cvVersionId) < 0x70 ) ) {
-        // In modeVal oder ManufactId steht kein korrekter Wert ( oder resModeP ist auf 0 ),
-        // alles initiieren mit den Defaultwerten
-        // Wird über DCC ein 'factory-Reset' empfangen wird modeVal zurückgesetzt, was beim nächsten
-        // Start zum initiieren führt.
-        //
+//There is no correct value in modeVal or ManufactId (or resModeP is set to 0),
+//initiate everything with the default values
+//If a 'factory reset' is received via DCC, modeVal will be reset, which will happen the next time
+//Start leads to initiate.
+//
         DB_PRINT( "Init-ALL!!");
         iniCv( INIALL );
     } else if ( progMode == INIMODE ) {
         iniCv( INIMODE );
     }
-    //-----------------------------------
-    // Interface initiieren
+//---------------------------------
+//Initiate interface
     ifc_init( DCC_DECODER_VERSION_ID, progMode, CV_POMLOW );
     
-    // Betriebsart auslesen
+//Read operating mode
     opMode = ifc_getCV( CV_MODEVAL) &0x0f;
     rocoOffs = ( opMode & ROCOADDR ) ? 4 : 0;
     DB_PRINT( "opMode=%d , rocoOffs=%d", opMode, rocoOffs );
 
-    // Encoder-Init
+//Encoder init
     IniEncoder();
 
-    //--- Ende Grundinitiierung ---------------------------------
+//---End of basic initiation ---------------------------------
     
-    setWeichenAddr(); // 1. Weichenadresse berechnen
+    setWeichenAddr();//1. Calculate switch address
         
     #ifdef DEBUG
     byte *heap_start = new( byte );
     #endif
-    //--- Die definierten Io's in einem linearen Array speichern. Der entsprechende Array-Abschnitt
-    // wird den Funktionsobjekten als Pointer übergeben, die damit ein Array mit 'ihren' Pin-Nummern
-    // erhalten
+//---Save the defined Io's in a linear array. The corresponding array section
+//is passed to the function objects as a pointer, which creates an array with 'their' pin numbers
+//receive
     for ( byte wIx = 0; wIx<weichenZahl; wIx++ ){
         ioPins[wIx*PPWA] = out1Pins[ wIx ];
         ioPins[wIx*PPWA+1] = out2Pins[ wIx ];
         ioPins[wIx*PPWA+2] = out3Pins[ wIx ];
     }
-    //--- Funktionsobjekte entsprechend der Konfiguration instanziieren ------------------
+//---Instantiate function objects according to the configuration ------------------
     for ( byte wIx=0; wIx<weichenZahl; wIx++ ) {
-        // Funktionsobjekte instanziieren und initiieren
-        byte vsIx = 0;  // Vorsignalindex am Mast auf 0 (kein Vorsignal) vorbesetzen
-        adressTyp[wIx] = NOCOM;  // Standard ist keine Folgeadresse
+//Instantiate and initiate function objects
+        byte vsIx = 0;//Preset the distant signal index on the mast to 0 (no distant signal).
+        adressTyp[wIx] = NOCOM;//Default is no follow-on address
         switch (iniTyp[wIx] )  {
           case FSERVO:
-            // Prüfen ob Servokombination ( Folgetyp = FSERVO0 )
+//Check whether servo combination (following type = FSERVO0)
             if ( wIx+1<weichenZahl && iniTyp[wIx+1] == FSERVO0 ){
-                // prüfen ob FSERVO0 gleicher Anschlußpin ( =Servo mit mehreren Stellungen )
+//check whether FSERVO0 has the same connection pin (=servo with several positions)
                 if ( out1Pins[wIx] != out1Pins[wIx+1] ) {
-                    // nein, 2 Servos mit kombinatorischer Ansteuerung
-                    // das 2. Servo greift auf das Modbyte des 1. Servos zu, da das Mod-Byte
-                    // des 2. Servos die Stellungskombinatorik enthält
+//no, 2 servos with combinatorial control
+//the 2nd servo accesses the mod byte of the 1st servo, as the mod byte
+//of the 2nd servo contains the position combinatorics
                     Fptr.servo[wIx] = new Fservo( cvParAdr(wIx,0) , &ioPins[wIx*PPWA], 2 );
                     Fptr.servo[wIx+1] = new Fservo( cvParAdr(wIx+1,0) , &ioPins[(wIx+1)*PPWA], 2, -CV_BLKLEN );
                     adressTyp[wIx] = SERVO_DOUBLE;
                 } else {
-                    // Servo mit 4 Positionen
+//Servo with 4 positions
                     adressTyp[wIx] = SERVO4POS;
                     Fptr.servo[wIx] = new Fservo( cvParAdr(wIx,0) , &ioPins[wIx*PPWA], 4 );
                 }
             } else {
-                //Standard-Servo
+//standard servo
                 Fptr.servo[wIx] = new Fservo( cvParAdr(wIx,0) , &ioPins[wIx*PPWA], 2 );
             }
             break;
-          case F2SERVO: // 2 Servos auf einer Adresse
-            Fptr.twoServo[wIx] = new F2Servo_t; // Struktur für die 2 Servos einrichten
-            // Pinnummern in die Strukt schreiben.
-            Fptr.twoServo[wIx]->pins1[0] = out1Pins[wIx];   // Pin Grundservo
-            Fptr.twoServo[wIx]->pins1[1] = out2Pins[wIx];   // Pin MittenRelais für Grundservo
-            Fptr.twoServo[wIx]->pins1[2] = NC;              // keine 2 Relais möglich
-            Fptr.twoServo[wIx]->pins2[0] = out3Pins[wIx];   // Pin 2. Servo
-            Fptr.twoServo[wIx]->pins2[1] = NC;              // keine Relais beim
-            Fptr.twoServo[wIx]->pins2[2] = NC;              // 2. Servo möglich
-            // Servoobjekte anlegen
+          case F2SERVO://2 servos on one address
+            Fptr.twoServo[wIx] = new F2Servo_t;//Set up structure for the 2 servos
+//Write pin numbers into the struct.
+            Fptr.twoServo[wIx]->pins1[0] = out1Pins[wIx];//Pin basic servo
+            Fptr.twoServo[wIx]->pins1[1] = out2Pins[wIx];//Pin center relay for basic servo
+            Fptr.twoServo[wIx]->pins1[2] = NC;//no 2 relays possible
+            Fptr.twoServo[wIx]->pins2[0] = out3Pins[wIx];//Pin 2. Servo
+            Fptr.twoServo[wIx]->pins2[1] = NC;//no relays at
+            Fptr.twoServo[wIx]->pins2[2] = NC;//2nd servo possible
+//Create servo objects
             Fptr.twoServo[wIx]->servo1 = new Fservo( cvParAdr(wIx,0), Fptr.twoServo[wIx]->pins1, 2 );
-            Fptr.twoServo[wIx]->servo2 = new Fservo( cvParAdr(wIx,0), Fptr.twoServo[wIx]->pins2, 2, F2OFFSET ); // mit Offset für Paramter
+            Fptr.twoServo[wIx]->servo2 = new Fservo( cvParAdr(wIx,0), Fptr.twoServo[wIx]->pins2, 2, F2OFFSET );//with offset for parameters
             break;
           case FCOIL:
             Fptr.coil[wIx] = new Fcoil( cvParAdr(wIx,0) , &ioPins[wIx*PPWA] );
@@ -345,24 +345,24 @@ void setup() {
             Fptr.stat[wIx] = new Fstatic( cvParAdr(wIx,0) , &ioPins[wIx*PPWA], iniTyp[wIx]==FSTATIC3 );
             break;
           case FSIGNAL2:
-            // Prüfen ob ein Vorsignal am Mast Dunkelgeschaltet werden muss
+//Check whether a distant signal on the mast needs to be darkened
             vsIx = getCvPar(wIx,PAR3);
             if( !(vsIx >= 1 && vsIx <= weichenZahl) ) {
-                // kein gültiger Vorsignalindex gefunden
+//no valid distant signal index found
                 vsIx = 0;
             }
             [[fallthrough]];
-            // die restliche Bearbeitung ist bei Signalen und Vorsignalen gleich
+//the rest of the processing is the same for signals and distant signals
           case FVORSIG:
-            {   // Zahl der Ausgangspins (PPWA*Folgeadressen) bestimmen
+            {//Determine the number of output pins (PPWA*following addresses).
                 byte pinZahl = PPWA; 
                 if ( wIx+1<weichenZahl && iniTyp[wIx+1] == FSIGNAL0 ){
                     pinZahl+=PPWA;
                     if ( wIx+2<weichenZahl && iniTyp[wIx+2] == FSIGNAL0 ) {
                         pinZahl+=PPWA;
-                        adressTyp[wIx] = SIGNAL3ADR;    // Lichtsignal mit 3 Adressen
+                        adressTyp[wIx] = SIGNAL3ADR;//Light signal with 3 addresses
                     } else {
-                        adressTyp[wIx] = SIGNAL2ADR;    // Lichtsignal mit 2 Adressen                        
+                        adressTyp[wIx] = SIGNAL2ADR;//Light signal with 2 addresses
                     }
                 }
                 DBSG_PRINT("Signal %d, PinMax=%d, Vsindex: %d",wIx+1, pinZahl, vsIx );
@@ -373,18 +373,18 @@ void setup() {
                 }
             }
             break;
-          default: // auch FSIGNAL0, FSERVO0
-            // hier werden gegebenenfalls Servo- und Signalfolgetypen übersprungen
+          default://also FSIGNAL0, FSERVO0
+//Servo and signal sequence types are skipped here if necessary
             ;
-        } // Ende switch Funktionstypen
-    } // Ende loop über alle Funktionen
+        }//End switch function types
+    }//End loop over all functions
 
-    DBprintCV(); // im Debug-Mode alle CV-Werte ausgeben
+    DBprintCV();//output all CV values ​​in debug mode
 #ifdef DEBUG
     byte *heap_end = new( byte );
 #ifdef __AVR_MEGA__
-    // Für Test Speicherbelegung ausgeben ( beim Heap sind die Adressen auf das RAM bezogen
-    // der Offset von 256 Byte IO-Adressen im ATMEga 328 wird abgezogen
+//Output memory occupancy for test (in the case of the heap, the addresses are related to the RAM
+//the offset of 256 bytes of IO addresses in the ATMega 328 is deducted
     DB_PRINT(">> Setup-Ende >> Heap: Start=0x%x (%d), End=0x%x (%d)", (int)&__heap_start-256, (int)__malloc_heap_start-256, (int)__brkval-256,(int)__brkval-256);
 #endif
     DB_PRINT(">>HEAP>> Start=0x%x, End=0x%x, Size=%d", heap_start, heap_end, heap_end-heap_start );
@@ -395,49 +395,50 @@ void setup() {
 
 
 ////////////////////////////////////////////////////////////////
+
 void loop() {
     #ifdef DEBUG
-    /*static unsigned long startMicros = micros();;
-    static int loopCnt = 0;
-    loopCnt++;
-    if ( micros() - startMicros > 1000000L ) {
-        // jede Sekunde Loopdauer ausgeben
-        Serial.print( "Loopdauer(µs):"); Serial.println( 1000000L/(long)loopCnt );
-        startMicros = micros();
-        loopCnt = 0;
-    }*/
+/*static unsigned long startMicros = micros();;
+static int loopCnt = 0;
+loopCnt++;
+if ( micros() -startMicros > 1000000L ) {
+//output every second of loop duration
+Serial.print( "Loop duration(µs):"); Serial.println( 1000000L/(long)loopCnt );
+startMicros = micros();
+loopCnt = 0;
+}*/
     #endif
     
     #ifdef IFC_SERIAL
-    dccSim();       // Simulation von DCC-Telegrammen
+    dccSim();//Simulation of DCC telegrams
     #endif
     
-    getEncoder();   // Drehencoder auswerten und Servolage gegebenenfalls anpassen
-    ifc_process();  // Hier werden die empfangenen Telegramme analysiert und der Sollwert gesetzt
+    getEncoder();//Evaluate the rotary encoder and adjust the servo position if necessary
+    ifc_process();//Here the received telegrams are analyzed and the setpoint is set
     #ifdef DEBUG
-    // Merker CV für CV-Ausgabe rücksetzen (MerkerCV ist 1.CV hinter dem CV-Block für die ausgangskonfiguration)
+//Reset flag CV for CV output (flag CV is 1st CV behind the CV block for the output configuration)
     if( ifc_getCV( cvParAdr(weichenZahl,MODE)) != 0xff ) ifc_setCV( cvParAdr(weichenZahl,MODE) , 0xff );
     #endif
     
-    // Ausgänge ansteuern
+//Control outputs
     for ( byte i=0; i<weichenZahl; i++ ) {
         switch ( iniTyp[i]  ) {
-          case FSERVO: // Servoausgänge ansteuern ----------------------------------------------
+          case FSERVO://Control servo outputs ------------------------------------------------
             Fptr.servo[i]->process();
             if ( adressTyp[i] == SERVO_DOUBLE ) {
-                //FolgeServo ansteuern
+//Control follower servo
                 Fptr.servo[i+1]->process();
             }
             break;
-          case F2SERVO: // 2 Servos auf einer Adresse
+          case F2SERVO://2 servos on one address
             Fptr.twoServo[i]->servo1->process();
             Fptr.twoServo[i]->servo2->process();
             break;
-          case FCOIL: //Doppelspulenantriebe ------------------------------------------------------
-           //if ( dccSoll[i] != SOLL_INVALID ) DBCL_PRINT( "SollCoil=%d", dccSoll[i] );
+          case FCOIL://Double coil drives ------------------------------------------------------
+//if ( dccSoll[i] != SOLL_INVALID ) DBCL_PRINT( "SollCoil=%d", dccSoll[i] );
            Fptr.coil[i]->process();
             break;
-          case FSTATIC: // Ausgang statisch ein/ausschalten ------------------------------------
+          case FSTATIC://Switch the output on/off statically -------------------------------------
           case FSTATIC3:
             Fptr.stat[i]->process();
             break;
@@ -447,25 +448,25 @@ void loop() {
             break;
           case FSIGNAL0:
           case FSERVO0: 
-            // Signalfolgetypen überspringen
+//Skip signal sequence types
             ;
-        } // - Ende Switch Funktionstypen-------------------------------------------
-    } // Ende Schleife über die Funktionen (Weichen)---------------
+        }//-End Switch Function Types-------------------------------------------
+    }//End of loop via the functions (switches)---------------
 
 
     #ifndef LOCONET
         #ifndef NOACK
-        // nur DCC: Ackimpuls abschalten--------------------------
+//only DCC: switch off ack pulse--------------
         if ( !AckImpuls.running() ) _digitalWrite( ackPin, LOW );
         #endif
     #else
-    // nur bei Loconet: prüfen ob Loconet-Id geändert werden soll
+//only with Loconet: check whether Loconet ID should be changed
     if ( chgLoconetId && !idLoconet.running() ) {
         chgLoconetId = false;
         ifc_init( CV_POMLOW );    }
     #endif
     
-    // Programmierled blinkt im Programmiermode bis zum Empfang einer Adresse
+//Programming LED flashes in programming mode until an address is received
     if ( ! ledTimer.running() && progMode == ADDRMODE) {
         ledTimer.setTime( 500 );
         if ( digitalRead( modePin ) ) 
@@ -473,34 +474,32 @@ void loop() {
         else
             SET_PROGLED;
     }
-} // Ende loop
-
-
-//-------------- Setzen der Funktionssollwerte ------------------------
-// Dieses Unterprogramm wird aufgerufen, wenn ein Funktionsobjekt umgeschaltet
-// werden soll. z.B. Signalbild am Lichtsignal, oder Weiche umschalten.
+}//end loop
+//--------------Setting the functional setpoints -----------------------
+//This subprogram is called when a function object is switched
+//shall be. e.g. signal image on the light signal, or switch points.
 void setPosition( byte wIx, byte sollWert, byte state = 0 ) {
-    // bei den meisten Funktionen ist für den Sollwert nur 0/1 sinnvoll. Bei Lichtsignalen
-    // mit mehreren Signalbildern sind auch höhere Werte sinnvoll ( bis zu 0...5 bei 6
-    // Signalbildern)
-    // state wird nur von FCOIL ausgewertet
+//for most functions only 0/1 makes sense for the setpoint. At light signals
+//with several signal images, higher values ​​also make sense (up to 0...5 for 6
+//signal images)
+//state is only evaluated by FCOIL
     DB_PRINT("Set wIx=%d, soll=%d, state=%d", wIx, sollWert, state);
     switch ( iniTyp[wIx] ) {
         case FSERVO:
-          // prüfen, ob es zwei in Kombination anzusteuernde Servos sind
+//check whether there are two servos to be controlled in combination
           if ( adressTyp[wIx] == SERVO_DOUBLE ) {
-            // ja, Positionen aus dem Modbyte des 2. Servos bestimmen.
+//yes, determine positions from the modbyte of the 2nd servo.
             byte pos = ifc_getCV( CV_FUNCTION + CV_BLKLEN*(wIx+1) ) >> ( sollWert*2 );
             DBSV_PRINT("Stellbyte=%02X",pos);
             Fptr.servo[wIx]->set( pos&1 );
             pos >>= 1;
             Fptr.servo[wIx+1]->set( pos&1 );
           } else {
-            // Standardservo oder Mehrstellungsservo
+//Standard servo or multi-position servo
             Fptr.servo[wIx]->set( sollWert );
           }
           break;
-        case F2SERVO:   // 2 Servos auf einer Adresse
+        case F2SERVO://2 servos on one address
           Fptr.twoServo[wIx]->servo1->set( sollWert );
           Fptr.twoServo[wIx]->servo2->set( sollWert );
           break;
@@ -518,78 +517,78 @@ void setPosition( byte wIx, byte sollWert, byte state = 0 ) {
     }
 }
 //////////////////////////////////////////////////////////////
-// Unterprogramme, die von der DCC bzw. LocoNet Library aufgerufen werden:
+//Subprograms called by the DCC or LocoNet Library:
 //------------------------------------------------
-// Die folgende Funktion wird von ifc_process() aufgerufen, wenn ein Weichentelegramm empfangen wurde
+//The following function is called by ifc_process() when a switch telegram has been received
 void ifc_notifyDccAccState( uint16_t Addr, uint8_t OutputAddr, uint8_t State ){
-    // Weichenadresse berechnen
+//Calculate switch address
     byte i,dccSoll,dccState;
-    uint16_t wAddr = Addr+rocoOffs; // Roco zählt ab 0, alle anderen lassen die ersten 4 Weichenadressen frei
-    // Im Programmiermodus bestimmt das erste empfangene Telegramm die erste Weichenadresse
+    uint16_t wAddr = Addr+rocoOffs;//Roco counts from 0, all others leave the first 4 switch addresses blank
+//In programming mode, the first telegram received determines the first switch address
     if ( progMode == ADDRMODE ) {
-        // Adresse berechnen und speichern
-        // Decoder ist immer im Output-Adressmode
+//Calculate and save address
+//Decoder is always in output address mode
         weichenAddr = wAddr;
         ifc_setCV( cvAccDecAddressLow, wAddr%256 );
         ifc_setCV( cvAccDecAddressHigh, wAddr/256 );
         progMode = PROGMODE;
         SET_PROGLED;
-       DB_PRINT( "Neu: 1.Weichenaddr: %d ", weichenAddr );
+       DB_PRINT( "New: 1.Turnout addr: %d ", weichenAddr );
     }
-    // Testen ob eigene Weichenadresse
-    DB_PRINT( "Weichenadresse: %d , Ausgang: %d, State: %d", wAddr, OutputAddr, State );
-    // Prüfen ob Adresse im Decoderbereich
+//Test whether your own switch address
+    DB_PRINT( "Switch address: %d , Exit: %d, State: %d", wAddr, OutputAddr, State );
+//Check whether address is in the decoder area
     if ( wAddr >= weichenAddr && wAddr < (weichenAddr + weichenZahl) ) {
-        // ist eigene Adresse, Sollwert setzen
+//is own address, set target value
         byte Ix = wAddr-weichenAddr;
         dccSoll =  OutputAddr & 0x1;
         dccState = State;
         
        
-        //DB_PRINT( "Weiche %d, Index %d, Soll %d, Ist %d", wAddr, Ix, dccSoll[Ix],  fktStatus[Ix] );
-        // Bei Servo- und Signaladressen muss der Sollzustand gegebenenfalls angepasst werden: Bei der ersten
-        // Folgeadresse von 0/1 auf 2/3, bei der 2. Folgeadresse auf 4/5 ( Signale können bis zu 6
-        // Sollzustände haben ). Ausserdem muss dieser geänderte Sollzustand an die Grundadresse
-        // übergeben werden.
+//DB_PRINT( "Switch %d, Index %d, Target %d, Actual %d", wAddr, Ix, dccSoll[Ix], fktStatus[Ix] );
+//For servo and signal addresses, the target state may need to be adjusted: For the first
+//Subsequent address from 0/1 to 2/3, with the 2nd subsequent address to 4/5 (signals can have up to 6
+//have target states). In addition, this changed target state must be sent to the basic address
+//be handed over.
         if ( iniTyp[Ix] == FSIGNAL0 || iniTyp[Ix] == FSERVO0 ) {
-            // es ist eine Folgeadresse
+//it is a subsequent address
             dccSoll += 2;
-            Ix--;           // Index auf Grundadresse stellen
+            Ix--;//Set index to base address
             if ( iniTyp[Ix] == FSIGNAL0 ) {
-                // ist 2. Folgeadresse
+//is 2nd subsequent address
                  dccSoll += 2;
                  Ix--;
             }
         }
-        // Prüfen ob gerade ein Servo justiert wird, und gebenenfalls die Justierung beenden 
+//Check whether a servo is currently being adjusted and, if necessary, stop the adjustment
         ChkAdjEncode( Ix, dccSoll );
 
-        // angesteuerte Adresse einstellen
+//set the addressed address
         setPosition( Ix, dccSoll, dccState );
     }
-    // Prüfen ob Vorsignal über Hauptsignaladresse geschaltet werden muss
+//Check whether distant signal must be switched via main signal address
     for ( i = 0; i < weichenZahl; i++ ) {
         uint16_t vsAdr;
         if ( iniTyp[i] == FVORSIG  ) {
-            // Adresse des zugehörigen Hauptsignals bestimmen
+//Determine the address of the associated main signal
             vsAdr = getCvPar(i, PAR3) + 256 * getCvPar(i, PAR4);
             if ( vsAdr == wAddr ) {
                 DBSG_PRINT( "Vorsig0 %d, Index %d, Soll %d", wAddr, i, OutputAddr & 0x1 );
                 setPosition( i, OutputAddr & 0x1 );
-                break; // Schleifendurchlauf abbrechen, es kann nur eine Signaladresse sein
+                break;//Cancel loop run, it can only be one signal address
             } else {
-                // Folgeadressen ( bei mehrbegriffigen Vorsignalen ) prüfen
+//Check subsequent addresses (for multi-term distant signals).
                 if ( i+1 < weichenZahl && iniTyp[i+1] == FSIGNAL0 ) {
-                    // 1. Folgeadresse vergleichen
+//1. Compare subsequent address
                     if ( vsAdr+1 == wAddr ) { 
-                        // Übereinstimmung gefunden, neues Signalbild setzen
+//Match found, set new signal image
                         DBSG_PRINT( "Vorsig1 %d, Index %d, Soll %d", wAddr, i, (OutputAddr & 0x1)+2  );
                         setPosition( i, (OutputAddr & 0x1)+2 );
                     } else {
                         if ( i+2 < weichenZahl && iniTyp[i+2] == FSIGNAL0 ) {
-                            // 2. Folgeadresse vergleichen
+//2. Compare subsequent address
                             if ( vsAdr+2 == wAddr ) { 
-                                // Übereinstimmung gefunden, neues Signalbild setzen
+//Match found, set new signal image
                                 DBSG_PRINT( "Vorsig2 %d, Index %d, Soll %d", wAddr, i, (OutputAddr & 0x1)+4  );
                                 setPosition( i, (OutputAddr & 0x1)+4 );
                             }
@@ -602,64 +601,64 @@ void ifc_notifyDccAccState( uint16_t Addr, uint8_t OutputAddr, uint8_t State ){
 }
 //---------------------------------------------------
 #ifndef LOCONET
-// wird aufgerufen, wenn die Zentrale ein CV ausliest. Es wird ein 60mA Stromimpuls erzeugt
+//is called when the control center reads a CV. A 60mA current pulse is generated
 void ifc_notifyCVAck ( void ) {
     #ifndef NOACK
-    // Ack-Impuls starten
-    //DB_PRINT( "Ack-Pulse" );
+//Start Ack pulse
+//DB_PRINT( "Ack Pulse" );
     AckImpuls.setTime( 6 );
     _digitalWrite( ackPin, HIGH );
     #endif
 }
 #endif
 //-----------------------------------------------------
-// Unterfunktion zu CVChange: Änderungen an Servo-CV's prüfen
+//Subfunction for CVChange: Check changes to servo CVs
 void chkServoCv( Fservo *servoP, uint8_t Value, int8_t parNr, int8_t sollOffs ) {
-    // parNr= 0: Pos0, 1:Pos1, 2:Speed
-    // welcher Paramter des Servo wurde verändert?
+//parNr= 0: Pos 0, 1:Pos1, 2:Speed
+//which parameter of the servo was changed?
     if ( parNr >= 0 && parNr < 3 ) {
-        // es ist ein Endlagen oder Speed Wert
+//it is an end position or speed value
         if ( parNr == 2  ) {
-            // die Geschwindigkeit des Servo wurde verändert
+//the speed of the servo was changed
             if ( sollOffs == 0 ) {
-                // bei 4-Stellungsservo bei der 2. Adresse ( sollOffs == 2 ) kein Speedwert.
+//with 4-position servo at the 2nd address (shouldOffs == 2) no speed value.
                 DBSV_PRINT( "Servo %4x, Par/Ofs.%d/%d , Speed. %d neu einstellen", (unsigned int)servoP, parNr, sollOffs, Value );
                 servoP->adjust( ADJSPEED, Value );
             }
         }  else if (  parNr+sollOffs == servoP->getPos() ){
-            // Es handelt sich um die aktuelle Position des Servos,
-            // Servo neu positionieren
+//This is the current position of the servo,
+//Reposition servo
            DBSV_PRINT( "Servo %4x, Par/Ofs.%d/%d , akt Pos. %d justieren", (unsigned int)servoP, parNr, sollOffs, Value );
            servoP->adjust( ADJPOS, Value );
         } else  {
-           // ist nicht de aktuelle Position des Servos, Servo umstellen 
+//is not the current position of the servo, change the servo
            DBSV_PRINT( "Servo %4x, Par/Ofs.%d/%d , auf Pos. %d umstellen", (unsigned int)servoP, parNr, sollOffs, Value );
            servoP->set( parNr+sollOffs );
         }
     }
   
 }
-// Wird aufgerufen, nachdem ein CV-Wert verändert wurde
+//Called after a CV value has been changed
 void ifc_notifyCVChange( uint16_t CvAddr, uint8_t Value ) {
     if ( !localCV ) {
-        //CV wurde über nmraDCC geändert. Ist dies eine aktive Servoposition, dann die Servoposition
-        // entsprechend anpassen, ebenso, wenn die Geschwindigkeit verändert wurde.
-        // zunächst berechnen, zu welchem Index die CV-Adresse gehört.
-        localCV = true; // kein erneuter Aufruf, wenn innerhalb dieser Funktion CV's verändert werden
+//CV was changed via nmraDCC. If this is an active servo position, then the servo position
+//adjust accordingly, also if the speed has been changed.
+//first calculate which index the CV address belongs to.
+        localCV = true;//no re-call if CV's are changed within this function
         int8_t wIx = (CvAddr - CV_FUNCTION) / CV_BLKLEN ;
         int8_t parIx = (CvAddr - CV_FUNCTION) % CV_BLKLEN ;
         DB_PRINT( "neu: CV%d=%d ( Index = %d, Parameter = %d )", CvAddr, Value, wIx, parIx  );
         if ( wIx >= 0 && wIx < weichenZahl ) {
-            // es ist ein Parameter CV
-            // prüfen ob Ausgang einen Servo ansteuert:
+//it is a parameter CV
+//check whether the output controls a servo:
             switch ( iniTyp[wIx] ) {
               case F2SERVO:
-                // verbunde Servos - prüfen zu welchem Servo der CV gehört
+//connected servos -check which servo the CV belongs to
                 if (  parIx >= 5 ) {
-                  // 2. Servo 
+//2nd servo
                     chkServoCv( Fptr.twoServo[wIx]->servo2, Value, parIx-PAR1-5, 0 );
                   } else {
-                    // 1.Servo
+//1.Servo
                     chkServoCv( Fptr.twoServo[wIx]->servo1, Value, parIx-PAR1, 0 );
                   }
                 break;;
@@ -667,29 +666,29 @@ void ifc_notifyCVChange( uint16_t CvAddr, uint8_t Value ) {
                 chkServoCv( Fptr.servo[wIx],Value, parIx-PAR1, 0 );
                 break;
               case FSERVO0:
-                // es ist ein CV der Servofolgeadresse
+//it is a CV of the servo sequence address
                 if ( Fptr.servo[wIx] == NULL ) {
-                  // Der Adresse ist kein eigener Servo zugeordnet -> ist Servo des vorherigen Index mit 4 Positionen
+//The address does not have its own servo assigned -> is the servo of the previous index with 4 positions
                   chkServoCv( Fptr.servo[wIx-1], Value, parIx-PAR1, 2 );
                 } else {
-                  // ist 2. Servo von verbundenen Servos ( mit eigenen CV's für Position und Geschwindigkeit )
+//is the 2nd servo of connected servos (with their own CV's for position and speed)
                   chkServoCv( Fptr.servo[wIx], Value, parIx-PAR1, 0 );
                 }
                 break;
             }
         }
         #ifdef DEBUG
-            // prüfen ob die CV-Adresse HINTER den Weichenadressen verändert wurde. Wenn ja,
-            // alle CV-Werte ausgeben und Wert wieder auf 0xff setzen
+//check whether the CV address BEHIND the switch addresses has been changed. If yes,
+//output all CV values ​​and set the value back to 0xff
             if ( CvAddr ==  cvParAdr(weichenZahl,MODE) && Value !=0xff ) {
                 DBprintCV();
             }
         #endif
 
-        // Prüfen ob schreibgeschützter CV verändert wurde. Wenn ja zurücksetzen
+//Check whether read-only CV has been changed. If so, reset
         if ( CvAddr == cv29Config ) {
-          // CV29 darf nicht verändert werden -> auf default setzen
-          ifc_setCV( cv29Config, config29Value ); // == Accessory-Decoder mit Output-Adressing
+//CV29 must not be changed -> set to default
+          ifc_setCV( cv29Config, config29Value );//== Accessory decoder with output addressing
         }
         if ( CvAddr == CV_ADRZAHL ) {
             ifc_setCV( CV_ADRZAHL, weichenZahl );
@@ -699,15 +698,15 @@ void ifc_notifyCVChange( uint16_t CvAddr, uint8_t Value ) {
                 ifc_setCV( (CV_INITYP+i), iniTyp[i] );
             }
         }
-        // prüfen ob die Weichenadresse verändert wurde. 
-        // Dies kann durch Ändern der Decoderadresse geschehen.
-        // Wird die Decoderadresse geändert muss zuerst das MSB (CV9) verändert werden. Mit dem
-        // Ändern des LSB (CV1) wird dann die Weichenadresse neu berechnet
-        //if (CvAddr ==  cvAccDecAddressLow || CvAddr ==  cvAccDecAddressHigh) setWeichenAddr();
+//check whether the switch address has been changed.
+//This can be done by changing the decoder address.
+//If the decoder address is changed, the MSB (CV9) must be changed first. With the
+//Changing the LSB (CV1) will then recalculate the switch address
+//if (CvAddr == cvAccDecAddressLow || CvAddr == cvAccDecAddressHigh) setWeichenAddr();
         if (CvAddr ==  cvAccDecAddressLow ) setWeichenAddr();
 
         #ifdef LOCONET
-        // Prüfen ob Pom-Adresse geändert wurde. Wenn ja, reset-Timer starten
+//Check whether pom address has been changed. If yes, start reset timer
         if ( CvAddr == CV_POMLOW || CvAddr == CV_POMHIGH ) {
             chgLoconetId = true;
             idLoconet.setTime( 2000 );
@@ -718,9 +717,9 @@ void ifc_notifyCVChange( uint16_t CvAddr, uint8_t Value ) {
 }    
 //-----------------------------------------------------
 void ifc_notifyCVResetFactoryDefault(void) {
-    // Auf Standardwerte zurücksetzen und Neustart
-    localCV = true;     // schaltet Schreibschutz für CV_ADRZAHL aus
-    ifc_setCV( CV_ADRZAHL, 255 ); // Damit wird nach Reset komplet initiiert.
+//Reset to default values ​​and restart
+    localCV = true;//switches off write protection for CV_ADRZAHL
+    ifc_setCV( CV_ADRZAHL, 255 );//This completely initiates after reset.
     delay( 20 );
     DB_PRINT( "Reset: AdrZahl=0x%2x", ifc_getCV( CV_ADRZAHL ) );
     delay(500);
@@ -729,58 +728,57 @@ void ifc_notifyCVResetFactoryDefault(void) {
 //------------------------------------------------------
 void ifc_notifyDccReset( uint8_t hardReset ) {
 #ifdef DEBUG
-    //if ( hardReset > 0 )//DB_PRINT("Reset empfangen, Value: %d", hardReset);
-    // wird bei CV-Auslesen gesendet
+//if ( hardReset > 0 )//DB_PRINT("Reset received, Value: %d", hardReset);
+//is sent when CV is read
 #endif
 }
 //--------------------------------------------------------
-
 /////////////////////////////////////////////////////////////////////////
-// Initiieren der CV-Werte
+//Initiate the CV values
 void iniCv( byte mode ) {
-    localCV= true; // keine auswertung in ifc_notifyCVchange
-    // Standard-CV's
+    localCV= true;//no evaluation in ifc_notifyCVchange
+//Standard CV's
     DB_PRINT("iniCV: %d", mode );
     for ( byte i=0; i<(sizeof(FactoryDefaultCVs) / sizeof(CVPair)); i++ ) {
             ifc_setCV( FactoryDefaultCVs[i].CV, FactoryDefaultCVs[i].Value);
     }
-    // Decoderspezifische CV's
+//Decoder-specific CV's
     
-    // allgemeine CV's
+//general CV's
     ifc_setCV( (int) CV_POMLOW, PomAddr%256 );
     ifc_setCV( (int) CV_POMHIGH, PomAddr/256 );
     ifc_setCV( (int) CV_INIVAL, VALIDFLG );
     ifc_setCV( (int) CV_MODEVAL, VALIDFLG | (iniMode&0xf) );
     ifc_setCV( (int) CV_ADRZAHL, weichenZahl );
-    // Funktionsspezifische CV's
+//Function-specific CV's
     for ( byte i = 0; i<weichenZahl; i++ ) {
         DB_PRINT("fktSpezCv: %d,Typ=%d", i, iniTyp[i] );
-        // Funktionstypen speichern
+//Save function types
         ifc_setCV( (int) (CV_INITYP+i), iniTyp[i] );
-        // Parameter speichern
-        #ifdef EXTENDED_CV  // initiale CV-Werte als 2-dim. Array
-            // native struktur ab Version 7.0
+//Save parameters
+        #ifdef EXTENDED_CV//initial CV values ​​as 2-dim. array
+//native structure from version 7.0
             for ( byte pIx = 0; pIx < CV_BLKLEN; pIx++ ) {
-                // Statuswert nicht initiieren   
+//Do not initiate status value
                 if ( pIx != STATE ) ifc_setCV( cvParAdr( i, pIx ), iniCVx[pIx][i] );     
             }
             if ( mode == INIALL ) {
-                // Bei INIALL auch alle Statuswerte initiieren
+//With INIALL also initiate all status values
                 ifc_setCV( cvParAdr(i,STATE ), iniCVx[CV_BLKLEN-1][i] );
             } 
-        #else // Konfig-File im V6-Format
+        #else//Config file in V6 format
             ifc_setCV( cvParAdr(i,MODE), iniFmode[i] );
             ifc_setCV( cvParAdr(i,PAR1), iniPar1[i] );
             ifc_setCV( cvParAdr(i,PAR2), iniPar2[i] );
             ifc_setCV( cvParAdr(i,PAR3), iniPar3[i] );
-            ifc_setCV( cvParAdr(i,PAR4), iniPar4[i] );     // in V6: Lichtsignalparameter oder Status
-            // restliche CV's ( 5...8 )löschen
+            ifc_setCV( cvParAdr(i,PAR4), iniPar4[i] );//in V6: light signal parameters or status
+//delete remaining CSv (5...8).
             for ( byte pIx = 5; pIx < (CV_BLKLEN-1); pIx++ ) {
                 ifc_setCV( cvParAdr( i, pIx ), 0 );
             }
             
             if ( mode == INIALL ) {
-                // Bei INIALL auch alle Statuswerte initiieren
+//With INIALL also initiate all status values
                 ifc_setCV( cvParAdr(i,STATE ), iniPar4[i] );
             } 
         #endif
@@ -788,10 +786,10 @@ void iniCv( byte mode ) {
     localCV=false;
 }
 //-------------------------------------------------------
-// Unterprogramme zur Servojustierung mit Drehencoder
+//Subprograms for servo adjustment with rotary encoder
 void IniEncoder( void ) {
     #ifdef ENCODER_AKTIV
-    // Encoder initiieren
+//Initiate encoder
     _pinMode( encode1P, INPUT_PULLUP );
     _pinMode( encode2P, INPUT_PULLUP );
     AdjServo = NULL;
@@ -805,25 +803,25 @@ void getEncoder(  ) {
     static bool dirState, taktState;
     static int lastCnt,jogCount = 0;
     static enum {IDLE0, TAKTHIGH, TAKTLOW } encoderState;
-    static boolean resModeState = HIGH;    //Flankenerkennung Mitteltaster
-    // Encoder-Statemachine
+    static boolean resModeState = HIGH;//Edge detection center button
+//Encoder state machine
     switch ( encoderState ) {
-      case IDLE0: // Grundstellung, warten auf Statuswechsel an encode1P
+      case IDLE0://Initial position, wait for status change at encode1P
         if ( digitalRead( encode1P )!= dirState ) {
             bool temp = digitalRead( encode2P );
             if (  temp != taktState ) {
-                // Es gab eine zusätzliche Taktflanke, Richtungsumkehr!
-                //Serial.println( "++++Doppeltakt" );
+//There was an additional clock edge, reversal of direction!
+//Serial.println( "++++double clock" );
                 jogCount = lastCnt;
             }
-            // Taktinput wieder scharf
+//Clock input active again
             encoderState = digitalRead( encode2P )? TAKTHIGH : TAKTLOW;
         }
         break;
       case TAKTHIGH:
-        // warte auf neg. Flanke am Taktinput
+//wait for a negative edge at the clock input
         if ( ! digitalRead( encode2P )  ) {
-            // Bei Schaltern mit doppelter Rastung auch hier Puls erzeugen
+//For switches with double detents, generate a pulse here too
             taktState = LOW;
             dirState = digitalRead( encode1P );
             lastCnt = jogCount;
@@ -836,10 +834,10 @@ void getEncoder(  ) {
         } 
         break;
       case TAKTLOW:
-        // warte auf pos. Flanke am Taktinput
+//wait for pos. Edge at the clock input
         if ( digitalRead( encode2P )  ) {
             taktState = HIGH;
-            // Richtung bestimmen
+//Determine direction
             dirState = digitalRead( encode1P );
             lastCnt = jogCount;
             if ( dirState )
@@ -849,47 +847,47 @@ void getEncoder(  ) {
         } 
     }
     #ifdef DEBUG
-    // encoderzähler ausgeben
+//Output encoder counter
     if ( jogCount != 0 ) {
         DBSV_PRINT( "Encoder: %d", jogCount );        
     }
     #endif
 
     if ( AdjServo != NULL && !AdjServo->isMoving() ) {
-        // es gibt eine aktuell zu justierendes Servo, das sich nicht
-        // gerade bewegt
+//There is a servo currently being adjusted that is not
+//just moved
         if ( jogCount != 0 ) {
-            // Drehencoder wurde bewegt 
+//Rotate encoder was moved
             if ( adjPulse == NO_ADJ ) {
-                // ist erster Justierimpuls, Servo auf aktuelle Justierposition stellen
-                // und aktuelle Position aus CV auslesen
+//is the first adjustment pulse, set the servo to the current adjustment position
+//and read current position from CV
                 AdjServo->set( adjPos );
                 adjPulse = AdjServo->getCvPos();
             }
             if ( (jogCount>0 && adjPulse<180) || (jogCount<0 && adjPulse>0) )
-                adjPulse += jogCount; // adjPulse nur im Bereich 0...180 
+                adjPulse += jogCount;//adjPulse only in the range 0...180
             AdjServo->adjust( ADJPOS, adjPulse );
         } else if ( analogRead( resModeP ) < 200 && resModeState == HIGH ) {
-            // Mittelstellungstaster gedrückt
+//Center position button pressed
             resModeState = LOW;
             if ( iniTyp[adjWix] == F2SERVO ) {
-                // bei Doppelservo wird hier der zu justierende Servo umgeschaltet
+//with a double servo, the servo to be adjusted is switched here
                 DBSV_PRINT("Servo wechseln");
                 if ( adjPulse != NO_ADJ ) {
-                    // Es wurde justiert, aktuellen Wert speichern
-                    localCV = true; // keine Bearbeitung in Callback-Routine NotifyCvChange
+//It was adjusted, save the current value
+                    localCV = true;//no processing in callback routine NotifyCvChange
                     AdjServo->adjust(ADJPOSEND,adjPulse);
                     adjPulse = NO_ADJ;
                     localCV = false;
                 }
-                // auf anderen Servo umschalten
+//switch to another servo
                 if ( AdjServo == Fptr.twoServo[adjWix]->servo1 ) {
                     AdjServo = Fptr.twoServo[adjWix]->servo2;
                 } else {
                     AdjServo = Fptr.twoServo[adjWix]->servo1;
                 }
             } else {
-                // ansonsten wird das Servo in Mittelstellung gefahren
+//otherwise the servo is moved to the middle position
                 DBSV_PRINT("Servo center");
                 AdjServo->center(ABSOLUT);
             }
@@ -902,20 +900,20 @@ void getEncoder(  ) {
 
 void ChkAdjEncode( byte WIndex, byte dccSoll ){
     #ifdef ENCODER_AKTIV
-    // Prüfen, ob die Folgeadresse zweier verbundener Servos angesprochen wurde
+//Check whether the following address of two connected servos has been addressed
     if ( adressTyp[WIndex] == SERVO_DOUBLE && dccSoll > 1 ) {
-        // Folgeadresse wurde angesprochen, Index auf dieses Servo stellen
+//Subsequent address was addressed, set index to this servo
         WIndex++;
         dccSoll -= 2;
     }
-    // nach dem Empfang einer Weichenadresse wird geprüft, ob eine vorherige Justierung gespeichert werden
-    // muss. Die empfangene Weichenadresse wird als neue Justieradresse gespeichert wenn es sich um einen
-    // Servoantrieb handelt.
+//after receiving a switch address, it is checked whether a previous adjustment has been saved
+//must. The received switch address is saved as a new adjustment address if it is a
+//Servo drive acts.
     if ( adjPulse != NO_ADJ ) {
-        // Es wurde justiert, testen ob gespeichert werden muss (Servowechsel)
+//It was adjusted, test whether it needs to be saved (servo change)
         if ( Fptr.servo[WIndex] != AdjServo || adjPos != dccSoll ) {
-            // Weiche wurde umgeschaltet, oder eine andere Weiche betätigt -> Justierung speichern
-            localCV = true; // keine Bearbeitung in Callback-Routine NotifyCvChange
+//Switch was switched or another switch was activated -> save adjustment
+            localCV = true;//no processing in callback routine NotifyCvChange
             AdjServo->adjust(ADJPOSEND,adjPulse);
             adjPulse = NO_ADJ;
             adjWix = NO_ADJ;
@@ -924,11 +922,11 @@ void ChkAdjEncode( byte WIndex, byte dccSoll ){
         }
     }
     if ( iniTyp[ WIndex ] == FSERVO || iniTyp[ WIndex] == FSERVO0 ) {
-        // die neue Adresse bezieht sich auf einen Servo
+//the new address refers to a servo
         AdjServo = Fptr.servo[WIndex];
         adjPos = dccSoll;
     } else if ( iniTyp[ WIndex ] == F2SERVO ) {
-        // neue Adresse ist ein Doppelservo, start mit Servo 1
+//new address is a double servo, start with servo 1
         AdjServo = Fptr.twoServo[WIndex]->servo1;
         adjPos = dccSoll;
         adjWix = WIndex;
@@ -945,12 +943,12 @@ void ChkAdjEncode( byte WIndex, byte dccSoll ){
 
 
 //////////////////////////////////////////////////////////////////////////
-// Allgemeine Unterprogramme 
+//General subprograms
 void setWeichenAddr(void) {
-    // Decoder ist immer im Ouput-Adressmode
+//Decoder is always in output address mode
         weichenAddr = ifc_getAddr( );
-   /* else
-        weichenAddr = (ifc_getAddr( )-1)*4 +1 + rocoOffs ;*/
+/*else
+softAddr = (ifc_getAddr( )-1)*4 +1 + rocoOffs ;*/
     DB_PRINT("setWadr: getAdr=%d, wAdr=%d", ifc_getAddr(), weichenAddr );
 }
 //--------------------------------------------------------
@@ -958,32 +956,32 @@ void softReset(void){
     DB_PRINT( "RESET" );
     delay(1000);
     #ifdef __AVR_MEGA__
-    //asm volatile ("  jmp 0");
-    cli(); //irq's off
-    wdt_enable(WDTO_15MS); //wd on,15ms
-    while(1); //loop              break;
+//asm volatile ("jmp 0");
+    cli();//irq's off
+    wdt_enable(WDTO_15MS);//wd on,15ms
+    while(1);//loop break;
     #endif
     #ifdef __STM32F1__
-    nvic_sys_reset();   //System-Reset der STM32-CPU
+    nvic_sys_reset();//System reset of the STM32 CPU
     #endif
 }
 //-----------------------------------------------------------
 #ifdef IFC_SERIAL
-/* Simulation der DCC-Befehle per serieller Schnittstelle
+/*Simulation of DCC commands via serial interface
 
-"ac 14 1 0"  > Zubehöradresse 14, sollwert 1 stat 0
-"cr 50"      > Cv-Adresse 50 lesen
-"cw 50 3"    > Cv Adresse 50 mit Wert 3 beschreiben
+"ac 14 1 0" > Accessory address 14, setpoint 1 stat 0
+"cr 50" > Read cv address 50
+"cw 50 3" > Write Cv address 50 with value 3
 
-Es werden die gleichen Callbacks wie von der nmraDCC Lib aufgerufen
+The same callbacks are called as from the nmraDCC Lib
 */
 void dccSim ( void ) {
-    static char rcvBuf[40];    // auch als Sendepuffer für Ergebnisse
-    static byte rcvIx=0;       // Index im Empfangspuffer
+    static char rcvBuf[40];//also as a send buffer for results
+    static byte rcvIx=0;//Index in the receive buffer
     #define IFC_PRINTF( x, ... ) { sprintf_P( rcvBuf, (const char*) F( x ), ##__VA_ARGS__ ) ; IFC_SERIAL.println( rcvBuf ); }
-    // Wenn Daten verfügbar, diese in den receive-Buffer lesen. Endezeichen ist LF oder CR
+//If data is available, read it into the receive buffer. End character is LF or CR
     char *token;
-    int adr =0; // empfagnee Adresse
+    int adr =0;//received address
     byte soll,state;
     byte dataAnz = IFC_SERIAL.available();
     if ( dataAnz > 0 ) {
@@ -992,10 +990,10 @@ void dccSim ( void ) {
         if ( rcvBuf[rcvIx-1] == 10 || rcvBuf[rcvIx-1] == 13 ) {
             rcvBuf[rcvIx-1] = ' ';
             rcvBuf[rcvIx] = 0;
-            // komplette Zeile empfangen -> auswerten
+//receive complete line -> evaluate
             token = strtok( rcvBuf, " ,");
             if ( strcmp( token, "ac" ) == 0 ) {
-                // Zubehörbefehl
+//accessory command
                 adr = atoi( strtok( NULL, " ," ) );
                 soll = atoi( strtok( NULL, " ," ) );
                 state = atoi( strtok(NULL, " ,") );
@@ -1003,18 +1001,18 @@ void dccSim ( void ) {
                 ifc_notifyDccAccState( adr, soll, state );
             }
             if ( strcmp( token, "cr" ) == 0 ) {
-                // CV lesen
+//Read CV
                 adr = atoi( strtok( NULL, " ," ) );
                 soll = ifc_getCV( adr );
                 IFC_PRINTF("CV%d = %d, 0x%02x",adr,soll,soll);
             }
             if ( strcmp( token, "cw" ) == 0 ) {
-                // CV schreiben
+//Write CV
                 adr = atoi( strtok( NULL, " ," ) );
                 soll = strtol( strtok( NULL, " ," ),NULL,0 );
                 if ( adr == 8 ) {
-                    // Schreiben auf CV8 löst nach DCC-Norm ein Rücksetzen auf
-                    // Werkseinstellungen aus ( = Werte aus Konfig-File )
+//Writing to CV8 triggers a reset according to the DCC standard
+//Factory settings off (= values ​​from config file)
                     ifc_notifyCVResetFactoryDefault();
                 } else {
                     ifc_setCV( adr, soll );
@@ -1022,10 +1020,10 @@ void dccSim ( void ) {
                 }
             }
             if ( strcmp( token, "ca" ) == 0 ) {
-                // Alle wesentlichen CV's ausgeben ( nur wenn debugging aktiv )
+//Output all essential CVs (only if debugging is active)
                 DBprintCV();
             }
-        // Empfangspuffer rücksetzen
+//Reset receive buffer
         rcvIx = 0;
         }
     }
@@ -1034,10 +1032,10 @@ void dccSim ( void ) {
 #ifdef DEBUG
 #ifdef __AVR_MEGA__
 int freeMemory() {
-    // die Adressen des RAM beginnen bei 256 (0x100). Darunter liegen die
-    // IO-Adressen.
+//the RAM addresses start at 256 (0x100). They lie underneath
+//IO addresses.
     int free_memory;
-    //DB_PRINT( "&fremem=%d, &heapstrt=%d, heapStrt=%d, brkVal=%d",&free_memory, &__heap_start, __heap_start, __brkval);
+//DB_PRINT( "&fremem=%d, &heapstrt=%d, heapStrt=%d, brkVal=%d",&free_memory, &__heap_start, __heap_start, __brkval);
     if ((int)__brkval == 0) {
         free_memory = ((int)&free_memory) - ((int)&__heap_start);
     } else {
@@ -1052,12 +1050,12 @@ int freeMemory() {
 #endif
 
 void DBprintCV(void) {
-    // für Debug-Zwecke den gesamten genutzten CV-Speicher ausgeben
-    // Standard-Adressen
+//output the entire CV memory used for debug purposes
+//Standard addresses
    DB_PRINT( "--------- Debug-Ausgabe CV-Werte ---------" );
    DB_PRINT( "Version: %x, ManufactId: %d", ifc_getCV( cvVersionId ), ifc_getCV( cvManufactId ) );
     
-    // Decoder-Konfiguration global
+//Decoder configuration global
    #ifdef LOCONET
    DB_PRINT(  "Initval (SV45/47) : 0x%x 0x%x ", ifc_getCV( CV_INIVAL ), ifc_getCV( CV_MODEVAL ) );
     DB_PRINT( "Konfig   (SV29)   : 0x%X", ifc_getCV( cv29Config ) );
@@ -1069,7 +1067,7 @@ void DBprintCV(void) {
     DB_PRINT( "Adresse:(CV1/9)   : %d", ifc_getCV( cvAccDecAddressLow )+ifc_getCV( cvAccDecAddressHigh )*256);
     DB_PRINT( "PoM-Adr.(CV48/49) : %d"   , ifc_getCV( CV_POMLOW) + 256* ifc_getCV( CV_POMHIGH ) );
    #endif    
-    // Output-Konfiguration
+//Output configuration
    DB_PRINT_( "Wadr | Typ | CV's  | Mode| Par1| Par2| Par3| Par4|" );
    DB_PRINT ( " Par5| Par6| Par7| Par8| Status |" );
     for( byte i=0; i<weichenZahl; i++ ) {

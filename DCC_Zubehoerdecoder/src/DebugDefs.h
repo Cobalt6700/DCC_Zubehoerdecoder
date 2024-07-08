@@ -14,12 +14,12 @@
 #ifdef DEBUG
     #define DB_PRINT( x, ... ) { char dbgbuf[60];sprintf_P( dbgbuf, (const char*) F( x ), ##__VA_ARGS__ ) ; Serial.println( dbgbuf ); }
     #define DB_PRINT_( x, ... ) { char dbgbuf[60];sprintf_P( dbgbuf, (const char*) F( x ), ##__VA_ARGS__ ) ; Serial.print( dbgbuf ); }
-    #ifdef __AVR_MEGA__
-        extern unsigned int __heap_start;
-        extern char *__malloc_heap_start;
-        extern char *__brkval;
-        int freeMemory();
-    #endif
+    // #ifdef __AVR_MEGA__
+    //     extern unsigned int __heap_start;
+    //     extern char *__malloc_heap_start;
+    //     extern char *__brkval;
+    //     int freeMemory();
+    // #endif
 #else
     #define DB_PRINT( x, ... ) ;
     #define DB_PRINT_( x, ... ) ;

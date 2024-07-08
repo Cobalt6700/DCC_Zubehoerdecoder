@@ -34,8 +34,8 @@
         const byte ackPin       =   PB4;
     #else
 //Definitions for the 'standard' Arduinos (UNO, Nano, Mega, Micro, Leonardo)
-        const uint8_t dccPin       =   2;
-        const uint8_t ackPin       =   4;
+        const uint8_t dccPin       =   2; //PIN_PA6
+        const uint8_t ackPin       =   4; //PIN_PB5
     #endif
 #endif
 
