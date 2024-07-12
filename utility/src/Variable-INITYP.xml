@@ -95,7 +95,7 @@
       </variable>
       <variable item="Fkt-FNR Par9" CV="CVPAR9">
         <decVal/>
-        <label>Status: </label>
+        <label>Return Time: </label>
       </variable>
         <!-- Ende FSERVO -->
 
@@ -155,7 +155,7 @@
       </variable>
       <variable item="Fkt-FNR Par9" CV="CVPAR9">
         <decVal/>
-        <label>Status: </label>
+        <label>Return Time: </label>
       </variable>
         <!-- Ende FSERVO0 -->
 
@@ -203,7 +203,7 @@
       </variable>
       <variable item="Fkt-FNR Par4" CV="CVPAR4">
         <decVal/>
-        <label>Status: </label>
+        <label>Return Time: </label>
       </variable>
       <!-- Werte des 2. Servo -->
       <variable item="Fkt-FNR Par5-Bit0" CV="CVPAR5" mask="XXXXXXXV">
@@ -248,7 +248,7 @@
       </variable>
       <variable item="Fkt-FNR Par9" CV="CVPAR9">
         <decVal/>
-        <label>Status: </label>
+        <label>Return Time: </label>
       </variable>
         <!-- Ende F2SERVO -->
 
