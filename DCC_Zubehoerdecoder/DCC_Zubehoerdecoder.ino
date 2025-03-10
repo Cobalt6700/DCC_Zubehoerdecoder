@@ -37,7 +37,10 @@ Assignment of the output states to the signal state can be configured.
 // #define KONFIG_FILE "examples/DCC_Zubehoerdecoder-LS-Nano.h"
 
 // #define KONFIG_FILE "../../MoBaTool/config_files/signals/headers/DCC_Zubehoerdecoder-LS-3led-attiny.h"
-#define KONFIG_FILE "../../MoBaTool/config_files/signals/headers/DCC_Zubehoerdecoder-LS-3led-1servo-attiny.h"
+// #define KONFIG_FILE "../../MoBaTool/config_files/signals/headers/DCC_Zubehoerdecoder-LS-3led-1servo-attiny.h"
+//  #define KONFIG_FILE "../../MoBaTool/config_files/signals/headers/DCC_Zubehoerdecoder-2P-4S-attiny.h"
+
+#define KONFIG_FILE "../../MoBaTool/config_files/points/headers/DCC_Zubehoerdecoder_8-solenoid_avr.h"
 
 #define DEBUG_GTI
 #define SIGNALDBG
@@ -619,6 +622,7 @@ void ifc_notifyCVAck ( void ) {
     #ifndef NOACK
 //Start Ack pulse
 //DB_PRINT( "Ack Pulse" );
+    // AckImpuls.setTime( 6 );
     AckImpuls.setTime( 6 );
     _digitalWrite( ackPin, HIGH );
     #endif
