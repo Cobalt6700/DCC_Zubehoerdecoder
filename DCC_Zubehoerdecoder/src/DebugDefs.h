@@ -56,6 +56,14 @@
     #define DBST_PRINT_( x, ... ) ;
 #endif
 
+#ifdef SERIALDBG
+    #define DBSE_PRINT( x, ... ) { char dbgbuf[60];sprintf_P( dbgbuf, (const char*) F( x ), ##__VA_ARGS__ ) ; Serial.println( dbgbuf ); }
+    #define DBSE_PRINT_( x, ... ) { char dbgbuf[60];sprintf_P( dbgbuf, (const char*) F( x ), ##__VA_ARGS__ ) ; Serial.print( dbgbuf ); }
+#else
+    #define DBSE_PRINT( x, ... ) ;
+    #define DBSE_PRINT_( x, ... ) ;
+#endif
+
 #else // für STM32F1
 #ifdef DEBUG
     #define DB_PRINT( x, ... ) { char dbgbuf[60];sprintf( dbgbuf, x, ##__VA_ARGS__ ) ; Serial.println( dbgbuf ); }
