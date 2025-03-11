@@ -93,8 +93,7 @@ void Fserial::_sendSerialCommand( uint8_t CommandID, bool sollWert ) {
 
             break;
     }
-    DBSE_PRINT( "SendSerialCommand: %d, %d", CommandID, outState );
-    sendSerialCommand( CommandID, outState );
+    DBSE_PRINT( "SendSerialCommand: %d, %d", CommandID, outState );   
 }
 
 //----------------------FCOIL -------------------------------------------
