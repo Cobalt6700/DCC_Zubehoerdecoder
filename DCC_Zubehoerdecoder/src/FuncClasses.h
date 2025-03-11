@@ -39,6 +39,32 @@ void _pinMode( byte port, byte mode );
 void _digitalWrite( byte port, byte state ) ;
 */
 //========================= Function classes ======================= =================
+
+//----------------------FSERIAL ----------------------------------------------------------
+//Flags for CV 'MODE':
+#define SEINV   0x01//Invert
+#define SESTRT 0x02//Start with output ON
+
+class Fserial {
+//Control of serial coprocessor
+    public:
+    Fserial( int cvAdr );
+    void process( );
+    void set( bool sollWert );//received new switching command //sollwert = target value
+
+    private:
+    void _sendSerialCommand( uint8_t CommandID, bool sollWert );
+    //do i need anything here?
+	
+    uint16_t _cvAdr;//Address of the CV block with the function parameters
+
+    struct {       
+        bool isOn  :1;//Function is switched on		
+    } _flags;       
+    
+ };
+
+
 //----------------------FCOIL -----------------------------------------
 //Flags for CV 'MODE'
 #define CAUTOOFF 0x01//The pulse duration is limited internally
