@@ -44,6 +44,8 @@ Assignment of the output states to the signal state can be configured.
 
 #define DEBUG_GTI
 #define SIGNALDBG
+#define EXTENDED_CV
+#define SERIALDBG
 
 
 #include "src/FuncClasses.h"
@@ -79,7 +81,8 @@ Assignment of the output states to the signal state can be configured.
 #define FSERVO0     7//Follow-up address for 2 coupled servos
 #define F2SERVO     8//Class for controlling 2 servos via one address
 #define FSTATIC3    9//3 outputs can be switched on or off statically/flashing
-#define FMAX        9  
+#define FSERIAL     10//Serial output for coprocessor. Function defined by cvs
+#define FMAX        10  
 
 //--------------------------------------
 //Flags for iniMode:
@@ -113,7 +116,7 @@ Assignment of the output states to the signal state can be configured.
 #endif
 //-------------------------------------------------------------------------------
 //-------------------------------------------
-const byte weichenZahl = sizeof(iniTyp);
+const byte weichenZahl = sizeof(iniTyp); //Num of functions
 
 #define cvParAdr(wIx,par)      (uint16_t)CV_FUNCTION+CV_BLKLEN*(wIx)+(par)
 #define getCvPar(wIx,par)   ifc_getCV( cvParAdr(wIx,par) )
@@ -156,6 +159,7 @@ union {//There is an array for each class, but they are on top of each other bec
     Fcoil   *coil[weichenZahl];    
     Fstatic *stat[weichenZahl];   
     Fsignal *sig[weichenZahl];
+    Fserial *ser[weichenZahl];
 }Fptr;    
 
 Fservo *AdjServo = NULL ;//Pointer to servo to be adjusted
@@ -226,6 +230,7 @@ void setup() {
     #define SERIAL_BAUD 115200
     #endif
     Serial.begin(SERIAL_BAUD);//Debugging and/or serial command interface
+    #define SERIALSTARTED
         #if defined(__STM32F1__) || defined(__AVR_ATmega32U4__) 
 //on STM32/ATmega32u4: wait until USB is active (maximum 6sec)
         {  unsigned long wait=millis()+6000;
@@ -389,6 +394,9 @@ void setup() {
                 }
             }
             break;
+        case FSERIAL:
+            Fptr.serial = new Fserial( cvParAdr(wIx,0) );
+            break;
           default://also FSIGNAL0, FSERVO0
 //Servo and signal sequence types are skipped here if necessary
             ;
@@ -529,6 +537,9 @@ void setPosition( byte wIx, byte sollWert, byte state = 0 ) {
         case FSIGNAL2:
         case FVORSIG:
           Fptr.sig[wIx]->set( sollWert );
+          break;
+        case FSERIAL:
+          Fptr.ser[wIx]->set( sollWert );
           break;
     }
 }
