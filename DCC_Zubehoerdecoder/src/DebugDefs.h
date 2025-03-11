@@ -8,10 +8,11 @@
 //#define SIGNALDBG
 //#define COILDBG
 //#define STATICDBG
+#define SERIALDBG
 
-#ifdef __AVR_MEGA__
+#if defined (__AVR_MEGA__) || defined (MEGATINYCORE)
 
-#ifdef DEBUG || (defined DEBUG_GTI)
+#if defined ( DEBUG ) || (defined DEBUG_GTI)
     #define DB_PRINT( x, ... ) { char dbgbuf[60];sprintf_P( dbgbuf, (const char*) F( x ), ##__VA_ARGS__ ) ; Serial.println( dbgbuf ); }
     #define DB_PRINT_( x, ... ) { char dbgbuf[60];sprintf_P( dbgbuf, (const char*) F( x ), ##__VA_ARGS__ ) ; Serial.print( dbgbuf ); }
     // #ifdef __AVR_MEGA__
