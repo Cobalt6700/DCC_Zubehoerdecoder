@@ -35,6 +35,68 @@ void _digitalWrite( byte port, byte state ) {
 }
 //######################### Class definitions ######################## #########
 
+//----------------------FSERIAL ----------------------------------------------------------
+//Control of serial coprocessor
+
+/*
+MODE = 10
+SEINV   0x01//Invert
+SESTRT 0x02//Start with output ON
+
+
+*/
+
+Fserial::Fserial( int cvAdr) {
+//Constructor of the class for static glow or flashing
+	byte modeOffs = 0;//In normal mode there is only one mode byte
+    _cvAdr = cvAdr;
+
+    DBSE_PRINT( "Fserial CV=%d, ",  _cvAdr );
+
+//Basic position of the output ports
+    _flags.isOn = !getParam( STATE );    
+    set( getParam( STATE ) );
+}
+
+//..............
+void Fserial::set( bool sollOn ) {
+//Switch function on/off
+    if ( sollOn != _flags.isOn ) {
+        // Get the command ID and pass it to the serial command function
+        uint8_t cID = getParam( PAR1);
+        _sendSerialCommand(cID, sollOn );
+		DBSE_PRINT( "Soll=%d, Mode=%02x", sollOn, cID );
+        _flags.isOn = sollOn;
+		setState( _flags.isOn );
+    }
+}
+
+//..............
+void Fserial::process( ) {
+// Nothing to do here..?
+}
+
+//..............
+void Fserial::_sendSerialCommand( uint8_t CommandID, bool sollWert ) {
+//send a serial command to the coprocessor depending on the configuration 
+	bool outState = sollWert;
+
+    switch( CommandID ) {
+        case 0: //no command
+            break;
+        case 1: //set output state
+            outState = sollWert;
+
+            break;
+        case 2: //invert output state
+            outState = !sollWert;
+
+            break;
+    }
+    DBSE_PRINT( "SendSerialCommand: %d, %d", CommandID, outState );
+    sendSerialCommand( CommandID, outState );
+}
+
 //----------------------FCOIL -------------------------------------------
 //Control of double coil drives
 
