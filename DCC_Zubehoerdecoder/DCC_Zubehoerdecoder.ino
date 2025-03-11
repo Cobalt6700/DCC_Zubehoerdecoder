@@ -39,14 +39,15 @@ Assignment of the output states to the signal state can be configured.
 // #define KONFIG_FILE "../../MoBaTool/config_files/signals/headers/DCC_Zubehoerdecoder-LS-3led-attiny.h"
 // #define KONFIG_FILE "../../MoBaTool/config_files/signals/headers/DCC_Zubehoerdecoder-LS-3led-1servo-attiny.h"
 //  #define KONFIG_FILE "../../MoBaTool/config_files/signals/headers/DCC_Zubehoerdecoder-2P-4S-attiny.h"
+#define KONFIG_FILE "examples/DCC_Zubehoerdecoder-2P-4S-attiny.h"
 
-#define KONFIG_FILE "../../MoBaTool/config_files/points/headers/DCC_Zubehoerdecoder_8-solenoid_avr.h"
+// #define KONFIG_FILE "../../MoBaTool/config_files/points/headers/DCC_Zubehoerdecoder_8-solenoid_avr.h"
 
 #define DEBUG_GTI
 #define SIGNALDBG
 #define EXTENDED_CV
-#define SERIALDBG
 
+// #include <Servo_megaTinyCore.h> ??? do i need this somewhere
 
 #include "src/FuncClasses.h"
 #ifdef __AVR_MEGA__
@@ -395,7 +396,7 @@ void setup() {
             }
             break;
         case FSERIAL:
-            Fptr.serial = new Fserial( cvParAdr(wIx,0) );
+            Fptr.ser[wIx] = new Fserial( cvParAdr(wIx,0) );
             break;
           default://also FSIGNAL0, FSERVO0
 //Servo and signal sequence types are skipped here if necessary
@@ -963,7 +964,7 @@ void ChkAdjEncode( byte WIndex, byte dccSoll ){
     }
     #endif
     #ifdef __AVR_MEGA__
-    DB_PRINT("chkAdj-Freemem %d", freeMemory() );
+    // DB_PRINT("chkAdj-Freemem %d", freeMemory() );
     #endif
 }
 
