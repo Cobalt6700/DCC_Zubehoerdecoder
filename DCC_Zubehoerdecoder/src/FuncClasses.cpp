@@ -80,17 +80,34 @@ void Fserial::process( ) {
 void Fserial::_sendSerialCommand( uint8_t CommandID, bool sollWert ) {
 //send a serial command to the coprocessor depending on the configuration 
 	bool outState = sollWert;
+    bool invert = getParam( PAR2) & 1;
+    char coproBuf[14];    
 
     switch( CommandID ) {
         case 0: //no command
             break;
-        case 1: //set output state
-            outState = sollWert;
-
+        case 1:{ //set output PWM
+            byte pwmHigh = getParam( PAR3);
+            byte pwmLow = getParam( PAR4);
+            if ( invert ) { outState = !sollWert; }
+            if ( outState ) { 
+                sprintf(coproBuf, "<%d,%d>", CommandID, pwmHigh );
+                Serial.println(coproBuf);
+            }
+            else { 
+                sprintf(coproBuf, "<%d,%d>", CommandID, pwmLow );
+                Serial.println(coproBuf);
+            }
+        }
             break;
-        case 2: //invert output state
-            outState = !sollWert;
-
+        case 2: //set output digital        
+            if ( invert ) { outState = !sollWert; }           
+            sprintf(coproBuf, "<%d,%d>", CommandID, outState);
+            Serial.println(coproBuf); 
+            break;
+        default:
+            sprintf(coproBuf, "UNKNOWN CMD");
+            Serial.println(coproBuf); 
             break;
     }
     DBSE_PRINT( "SendSerialCommand: %d, %d", CommandID, outState );   
