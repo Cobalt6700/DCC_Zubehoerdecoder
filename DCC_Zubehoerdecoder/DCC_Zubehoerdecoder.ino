@@ -144,6 +144,7 @@ byte rocoOffs;//4 for ROCO addressing, 0 otherwise
 //byte isOutputAddr=1;            //Flag whether output addressing from 6.1 is always Ouput address
 word weichenAddr;//Address of the 1st switch (of the entire block)
 byte ioPins[PPWA*weichenZahl];//all defined IO's in a linear array
+bool serialStarted = false;
 //Structure for 2 servos at one address (F2SERVO)
 typedef struct {
     Fservo  *servo1;
@@ -230,8 +231,10 @@ void setup() {
     #ifndef SERIAL_BAUD
     #define SERIAL_BAUD 115200
     #endif
-    Serial.begin(SERIAL_BAUD);//Debugging and/or serial command interface
-    #define SERIALSTARTED
+    if ( !serialStarted ) { 
+        Serial.begin(SERIAL_BAUD); //Debugging and/or serial command interface
+        serialStarted = false ;
+    }  
         #if defined(__STM32F1__) || defined(__AVR_ATmega32U4__) 
 //on STM32/ATmega32u4: wait until USB is active (maximum 6sec)
         {  unsigned long wait=millis()+6000;
@@ -395,7 +398,11 @@ void setup() {
                 }
             }
             break;
-        case FSERIAL:
+        case FSERIAL:            
+            if ( !serialStarted ) { 
+                Serial.begin(SERIAL_BAUD); //serial coprocessor interface
+                serialStarted = false ;
+            }
             Fptr.ser[wIx] = new Fserial( cvParAdr(wIx,0) );
             break;
           default://also FSIGNAL0, FSERVO0
@@ -470,6 +477,9 @@ loopCnt = 0;
           case FVORSIG:
           case FSIGNAL2:
             Fptr.sig[i]->process();
+            break;
+        case FSERIAL:
+            Fptr.ser[i]->process();
             break;
           case FSIGNAL0:
           case FSERVO0: 
