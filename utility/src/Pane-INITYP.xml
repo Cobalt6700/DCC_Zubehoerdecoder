@@ -37,6 +37,11 @@
     <label> <text> Distantignal (FNR)  </text>  </label>
 
   <!-- ^^^^^^^^^^^Ende FVORSIG ^^^^^^^^^^^^^^^^ -->
+#elif ( INITYP == FSERIAL )
+  <column>
+    <label> <text> Serial (FNR)  </text>  </label>
+
+  <!-- ^^^^^^^^^^^Ende FSERIAL ^^^^^^^^^^^^^^^^ -->
 #else
 #undef VALIDINI
 #endif
