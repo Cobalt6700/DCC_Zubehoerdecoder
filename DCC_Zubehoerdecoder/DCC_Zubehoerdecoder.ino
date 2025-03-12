@@ -39,12 +39,12 @@ Assignment of the output states to the signal state can be configured.
 // #define KONFIG_FILE "../../MoBaTool/config_files/signals/headers/DCC_Zubehoerdecoder-LS-3led-attiny.h"
 // #define KONFIG_FILE "../../MoBaTool/config_files/signals/headers/DCC_Zubehoerdecoder-LS-3led-1servo-attiny.h"
 //  #define KONFIG_FILE "../../MoBaTool/config_files/signals/headers/DCC_Zubehoerdecoder-2P-4S-attiny.h"
-#define KONFIG_FILE "examples/DCC_Zubehoerdecoder-2P-4S-attiny.h"
+#define KONFIG_FILE "examples/DCC_Zubehoerdecoder-3P-3S-1Ser_attiny.h"
 
 // #define KONFIG_FILE "../../MoBaTool/config_files/points/headers/DCC_Zubehoerdecoder_8-solenoid_avr.h"
 
-#define DEBUG_GTI
-#define SIGNALDBG
+// #define DEBUG_GTI
+// #define SIGNALDBG
 #define EXTENDED_CV
 
 // #include <Servo_megaTinyCore.h> ??? do i need this somewhere
