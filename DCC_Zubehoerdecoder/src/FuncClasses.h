@@ -180,7 +180,9 @@ class Fservo {
         bool moving   :1 ;//Servo in motion
         bool sollAct  :1 ;//Setpoint has not yet been adopted
     } _flags;
- 
+    uint8_t _spd_up;
+    uint8_t _spd_dwn; 
+    bool _dualspd = true;
  };
 //-----------------------SIGNAL -------------------------------------------
 //Constant for light signal function
@@ -195,7 +197,7 @@ const byte  LSMODE=0,                 BILD1=1,              BILD2=2, VORSIG=3,  
             SOFTMASK3=0+(2*CV_BLKLEN),BILD5=1+(2*CV_BLKLEN),BILD6=2+(2*CV_BLKLEN),//Parameter 3. Address
                                      BLINK5=5+(2*CV_BLKLEN),BLINK6=5+(2*CV_BLKLEN);
             
-#define SIG_DARK_TIME   800//Time between darkening and showing the new signal image
+#define SIG_DARK_TIME   400//Time between darkening and showing the new signal image
 #define SIG_RISETIME    400//Fade up/fade out time
  
  class Fsignal {
