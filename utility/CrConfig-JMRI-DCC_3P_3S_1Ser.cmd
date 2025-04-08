@@ -40,3 +40,5 @@ gpp -s "\"" +n  --include %model%.txt  -I .\src  -o Public_Domain_%interface%_%m
 rem pause
 del %model%.txt
 pause
+
+NE Sidings P21 P22 P23 G21 G22 G23
