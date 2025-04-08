@@ -18,10 +18,8 @@
         <decVal/>
         <label>Function: </label>
       </variable>
-      <variable item="Fkt-FNR Par2" CV="CVPAR2" >
-        <enumVal> 
-          <enumChoice> <choice>off</choice> </enumChoice> <enumChoice> <choice>on</choice>  </enumChoice>
-        </enumVal>
+      <variable item="Fkt-FNR Par2" CV="CVPAR2">
+        <decVal/>
         <label>Invert: </label>
       </variable>
       <variable item="Fkt-FNR Par3" CV="CVPAR3">
