@@ -43,9 +43,11 @@ Assignment of the output states to the signal state can be configured.
 
 // #define KONFIG_FILE "../../MoBaTool/config_files/points/headers/DCC_Zubehoerdecoder_8-solenoid_avr.h"
 
-// #define DEBUG_GTI
+#define DEBUG_GTI
 // #define SIGNALDBG
 #define EXTENDED_CV
+
+#define CV_INIT_MODE
 
 // #include <Servo_megaTinyCore.h> ??? do i need this somewhere
 
@@ -53,7 +55,10 @@ Assignment of the output states to the signal state can be configured.
 #ifdef __AVR_MEGA__
 #include <avr/wdt.h>    //for soft reset (via watchdog)
 #endif
-
+#ifdef MEHGATINYCORE
+#include <avr/io.h>
+#endif
+// #include <algorithm> 
 //------------------------------------------//
 
 
@@ -136,6 +141,7 @@ CVPair FactoryDefaultCVs [] =
   {cvVersionId, DCC_DECODER_VERSION_ID},
   {cvManufactId, manIdValue},
   {cv29Config, config29Value},
+
 };
 
 //----------------------Variable -------------------------------------------------
@@ -205,9 +211,30 @@ void setup() {
 #ifdef __STM32F1__
    disableDebugPorts();//Enable JTAG and SW ports
 #endif
-    #ifdef FIXMODE
+    // Find a spare CV and write the startup to this. 
+    // We should then be able to write a new value and call softreset()?
+    #if defined (FIXMODE)
     progMode = FIXMODE;
     int temp = -1;
+    #elif defined (CV_INIT_MODE)
+//Read operating mode
+    int temp = ifc_getCV( CV_INIMOD );    
+    if ( temp == NORMALMODE ) {
+//Normal operation
+        progMode = NORMALMODE;
+    } else if ( temp == POMMODE ) {
+//PoM always active
+        progMode = POMMODE;
+    } else if ( temp == INIMODE ) {
+//IniMode -Basic CV's are always initiated
+        progMode = INIMODE;
+    } else if ( temp == ADDRMODE ){
+//Programming mode, automatic address recognition
+        progMode = ADDRMODE;
+    }else{
+        progMode = NORMALMODE;
+        iniFlg = true;
+    }
     #else
 //Read operating mode
     int temp = analogRead( betrModeP );
@@ -233,7 +260,7 @@ void setup() {
     #endif
     if ( !serialStarted ) { 
         Serial.begin(SERIAL_BAUD); //Debugging and/or serial command interface
-        serialStarted = false ;
+        serialStarted = true ;
     }  
         #if defined(__STM32F1__) || defined(__AVR_ATmega32U4__) 
 //on STM32/ATmega32u4: wait until USB is active (maximum 6sec)
@@ -284,7 +311,11 @@ void setup() {
     }
 //In V7 no ValidFlg is checked, only whether the HW-specific CV's correspond to the config values
 //if ( (ifc_getCV( CV_MODEVAL )&0xf0) != VALIDFLG || ifc_getCV(CV_INIVAL) != VALIDFLG || analogRead(resModeP) < 100 || (ifc_getCV(cvVersionId) < 0x70 ) ) {
-    if ( iniFlg || analogRead(resModeP) < 100 || (ifc_getCV(cvVersionId) < 0x70 ) ) {
+    #if defined (CV_INIT_MODE)
+        if ( iniFlg || (ifc_getCV(cvVersionId) < 0x70 ) ) {
+    #else
+        if ( iniFlg || analogRead(resModeP) < 100 || (ifc_getCV(cvVersionId) < 0x70 ) ) {
+    #endif    
 //There is no correct value in modeVal or ManufactId (or resModeP is set to 0),
 //initiate everything with the default values
 //If a 'factory reset' is received via DCC, modeVal will be reset, which will happen the next time
@@ -744,6 +775,11 @@ void ifc_notifyCVChange( uint16_t CvAddr, uint8_t Value ) {
 //if (CvAddr == cvAccDecAddressLow || CvAddr == cvAccDecAddressHigh) setWeichenAddr();
         if (CvAddr ==  cvAccDecAddressLow ) setWeichenAddr();
 
+        if (CvAddr ==  CV_INIMOD ){
+            ifc_setCV( CV_INIMOD, Value );    
+            softReset();
+        } 
+
         #ifdef LOCONET
 //Check whether pom address has been changed. If yes, start reset timer
         if ( CvAddr == CV_POMLOW || CvAddr == CV_POMHIGH ) {
@@ -789,6 +825,7 @@ void iniCv( byte mode ) {
     ifc_setCV( (int) CV_INIVAL, VALIDFLG );
     ifc_setCV( (int) CV_MODEVAL, VALIDFLG | (iniMode&0xf) );
     ifc_setCV( (int) CV_ADRZAHL, weichenZahl );
+    ifc_setCV( (int) CV_INIMOD, NORMALMODE );
 //Function-specific CV's
     for ( byte i = 0; i<weichenZahl; i++ ) {
         DB_PRINT("fktSpezCv: %d,Typ=%d", i, iniTyp[i] );
@@ -1000,6 +1037,12 @@ void softReset(void){
     wdt_enable(WDTO_15MS);//wd on,15ms
     while(1);//loop break;
     #endif
+    // #ifdef MEGATINYCORE
+    //     cli();  // Disable interrupts
+    //     // For ATtiny 3226, we need to use the newer watchdog API
+    //     _PROTECTED_WRITE(WDT.CTRLA, WDT_PERIOD_8CLK_gc);  // Set watchdog timeout (~8ms)
+    //     while(1);  // Wait for watchdog to reset the device
+    // #endif
     #ifdef __STM32F1__
     nvic_sys_reset();//System reset of the STM32 CPU
     #endif
