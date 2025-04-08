@@ -120,6 +120,7 @@ const uint8_t cv29Config           = CV_29_CONFIG;
 const uint8_t config29Value         = CV29_ACCESSORY_DECODER | CV29_OUTPUT_ADDRESS_MODE;
 const uint8_t config29AddrMode      = CV29_OUTPUT_ADDRESS_MODE;
 const uint8_t manIdValue            = MAN_ID_DIY;
+const uint8_t initmodevalue         = NORMALMODE;
 
 void ifc_init( uint8_t version, uint8_t progMode, uint8_t cvPomLow ) {
 //Initiate nmra-Dcc Lib
