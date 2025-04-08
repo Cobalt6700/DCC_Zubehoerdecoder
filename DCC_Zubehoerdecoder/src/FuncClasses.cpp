@@ -389,11 +389,28 @@ Fservo::Fservo( int cvAdr, uint8_t pins[], uint8_t posZahl, int8_t modeOffs ) {
     _parOffs=0;
     if ( modeOffs > 0 ) {
         _parOffs = modeOffs;//Is 2nd servo on primary address (F2SERVO)
+        // _dualspd = false;
     }
-//Set up turnout servo
-    if ( _outP[SERVOP] != NC ) {
-        _weicheS.attach( _outP[SERVOP], getParam( _modeOffs ) & SAUTOOFF );
-        _weicheS.setSpeed( getParam( PAR3+_parOffs ) );
+    else{
+        // if ( getParam( PAR4 ) > 0 ) {
+        //     _dualspd = true;
+        // }
+    }
+    if ( _dualspd ) {
+        _spd_up = getParam( PAR3 );
+        _spd_dwn = getParam( PAR3 ) + 75;
+        //Set up turnout servo
+        if ( _outP[SERVOP] != NC ) {
+            _weicheS.attach( _outP[SERVOP], getParam( _modeOffs ) & SAUTOOFF );
+            _weicheS.setSpeed( _spd_up );
+        }
+    }
+    else{
+        //Set up turnout servo
+        if ( _outP[SERVOP] != NC ) {
+            _weicheS.attach( _outP[SERVOP], getParam( _modeOffs ) & SAUTOOFF );
+            _weicheS.setSpeed( getParam( PAR3+_parOffs ) );
+        }
     }
     for ( uint8_t i = 0; i<posZahl; i++ ) {
         _pinMode( _outP[_relIx[i]], OUTPUT );
@@ -474,9 +491,23 @@ DBSV_PRINT( "dccSoll=%d", _sollPos );
         }
     } else if ( _flags.sollAct  && (_sollPos != _istPos || (getParam( _modeOffs) & NOPOSCHK))  ) {
 //Switch needs to be changed
+        if ( _dualspd ) {
+            uint16_t spd = getParam( PAR3 );
+            // if ( _sollPos == 0 ) _weicheS.setSpeed( getParam( PAR3 ) );
+            // else       
+            if ( _sollPos == 0 ){ 
+                // uint16_t temp_spd = getParam( PAR3 ) + 20;
+                // spd = constrain(temp_spd, 0, 255);
+                spd = 400;   
+            }
+            else{
+                spd= getParam( PAR3 );
+            } 
+            _weicheS.setSpeed( spd );
+        }
         _istPos = _sollPos;//Actual value to setpoint
         _flags.moving = true;//and set MOVING flag.
-        DBSV_PRINT("Servo-write=%d", getParam( posOffset[_sollPos]+_parOffs ) );
+        DBSV_PRINT("Servo-write=%d", getParam( posOffset[_sollPos]+_parOffs ) );        
         _weicheS.write( getParam( posOffset[_sollPos]+_parOffs ) );
     }
 //Set relay outputs
@@ -551,7 +582,7 @@ Fsignal::Fsignal( int cvAdr, uint8_t pins[], uint8_t pinAnz, Fsignal** vorSig ){
 //Signals are always initiated with the basic state ( = HP0 or Hp00 )
     
     _cvAdr  = cvAdr;
-    _pinAnz = min( 8, pinAnz );
+    _pinAnz = min( (uint8_t) 8, pinAnz );
     _vorSig = vorSig;//== ZERO if no distant signal on the mast
 //Number of assigned output ports (maximum 8 used)
     _outP = pins;
