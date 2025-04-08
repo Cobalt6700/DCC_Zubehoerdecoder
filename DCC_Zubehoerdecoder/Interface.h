@@ -34,8 +34,8 @@
         const byte ackPin       =   PB4;
     #else
 //Definitions for the 'standard' Arduinos (UNO, Nano, Mega, Micro, Leonardo)
-        const uint8_t dccPin       =   2; //PIN_PA6
-        const uint8_t ackPin       =   4; //PIN_PB5
+        const uint8_t dccPin       =   2; //PIN_PA6 // Chip Pin 4
+        const uint8_t ackPin       =   5; //PIN_PB5 // Chip Pin 6
     #endif
 #endif
 
@@ -70,6 +70,7 @@ extern byte progMode;
 #define CV_INITYP     51//CV51 ff contain the function types of the addresses (cannot be changed)
 #define CV_FUNCTION  120//Start the function configuration blocks
 #define CV_BLKLEN     10//Length of a CV block (one block per address)
+#define CV_INIMOD     44
 //The meaning is largely function specific
 
 extern const byte modePin;
@@ -84,6 +85,7 @@ extern const uint8_t cv29Config;
 extern const uint8_t config29Value;
 extern const uint8_t config29AddrMode;
 extern const uint8_t manIdValue;
+
 
 void ifc_notifyDccAccState( uint16_t Addr, uint8_t OutputAddr, uint8_t State );
 void ifc_notifyCVAck ( void );
