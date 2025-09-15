@@ -3,13 +3,15 @@
 #ifndef DEBUGDEFS
 #define DEBUGDEFS
 
+#include "../code_configs.h"
+
 //#define DEBUG
 //#define SERVODBG
 //#define SIGNALDBG
 //#define COILDBG
 //#define STATICDBG
 // #define SERIALDBG
-#define DEBUG_GTI
+
 
 #if defined (__AVR_MEGA__) || defined (MEGATINYCORE)
 
@@ -64,6 +66,13 @@
 #else
     #define DBSE_PRINT( x, ... ) ;
     #define DBSE_PRINT_( x, ... ) ;
+#endif
+#ifdef ANGLEDBG
+    #define DBANG_PRINT( x, ... ) { char dbgbuf[80];sprintf_P( dbgbuf, (const char*) F( x ), ##__VA_ARGS__ ) ; Serial.println( dbgbuf ); }
+    #define DBANG_PRINT_( x, ... ) { char dbgbuf[80];sprintf_P( dbgbuf, (const char*) F( x ), ##__VA_ARGS__ ) ; Serial.print( dbgbuf ); }
+#else
+    #define DBANG_PRINT( x, ... ) ;
+    #define DBANG_PRINT_( x, ... ) ;
 #endif
 
 #else // für STM32F1

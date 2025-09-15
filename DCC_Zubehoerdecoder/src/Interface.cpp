@@ -120,7 +120,13 @@ const uint8_t cv29Config           = CV_29_CONFIG;
 const uint8_t config29Value         = CV29_ACCESSORY_DECODER | CV29_OUTPUT_ADDRESS_MODE;
 const uint8_t config29AddrMode      = CV29_OUTPUT_ADDRESS_MODE;
 const uint8_t manIdValue            = MAN_ID_DIY;
-const uint8_t initmodevalue         = NORMALMODE;
+
+const uint8_t cv15lock              = CV_15_LOCK;
+const uint8_t cv16lock              = CV_16_LOCK;
+const uint8_t cv15Value             = 0x00;
+const uint8_t cv16Value             = 0x00;
+
+// const uint8_t initmodevalue         = NORMALMODE;
 
 void ifc_init( uint8_t version, uint8_t progMode, uint8_t cvPomLow ) {
 //Initiate nmra-Dcc Lib
@@ -128,15 +134,28 @@ void ifc_init( uint8_t version, uint8_t progMode, uint8_t cvPomLow ) {
     _digitalWrite( ackPin, LOW );
 
     Dcc.pin( digitalPinToInterrupt(dccPin), dccPin, 1); 
-    if ( progMode == NORMALMODE || progMode == INIMODE ) {
-//no POM programming
-        Dcc.init( MAN_ID_DIY, version, FLAGS_DCC_ACCESSORY_DECODER | FLAGS_OUTPUT_ADDRESS_MODE, (uint8_t)((uint16_t) 0) );
-        CLR_PROGLED;
-    } else {
-//POM programming active
-        Dcc.init( MAN_ID_DIY, version, FLAGS_DCC_ACCESSORY_DECODER | FLAGS_OUTPUT_ADDRESS_MODE, (uint8_t)(cvPomLow) );
-        SET_PROGLED;
-    }
+    #if defined (CV_INIT_MODE)
+         if ( progMode == INIMODE ) {
+        //no POM programming
+                Dcc.init( MAN_ID_DIY, version, FLAGS_DCC_ACCESSORY_DECODER | FLAGS_OUTPUT_ADDRESS_MODE, (uint8_t)((uint16_t) 0) );
+                CLR_PROGLED;
+            } else {
+        //POM programming active
+                Dcc.init( MAN_ID_DIY, version, FLAGS_DCC_ACCESSORY_DECODER | FLAGS_OUTPUT_ADDRESS_MODE, (uint8_t)(cvPomLow) );
+                SET_PROGLED;
+            }
+    #else
+        if ( progMode == NORMALMODE || progMode == INIMODE ) {
+        //no POM programming
+                Dcc.init( MAN_ID_DIY, version, FLAGS_DCC_ACCESSORY_DECODER | FLAGS_OUTPUT_ADDRESS_MODE, (uint8_t)((uint16_t) 0) );
+                CLR_PROGLED;
+            } else {
+        //POM programming active
+                Dcc.init( MAN_ID_DIY, version, FLAGS_DCC_ACCESSORY_DECODER | FLAGS_OUTPUT_ADDRESS_MODE, (uint8_t)(cvPomLow) );
+                SET_PROGLED;
+            }
+    #endif
+    
 
 }
 
@@ -161,6 +180,10 @@ uint16_t ifc_getAddr(){
       return ( ( Dcc.getCV( CV_ACCESSORY_DECODER_ADDRESS_MSB ) & 0b00000111) << 6 ) | ( Dcc.getCV( CV_ACCESSORY_DECODER_ADDRESS_LSB ) & 0b00111111) ;
     #endif
 }
+
+bool ifc_decoderWritesEnabled(){
+    return Dcc.checkDecoderLock();
+};
 
 void ifc_process() {
     Dcc.process();
@@ -194,5 +217,7 @@ void notifyCVResetFactoryDefault(void) {
 void notifyDccReset( uint8_t hardReset ) {
     ifc_notifyDccReset( hardReset );
 }
+
+
 
 #endif

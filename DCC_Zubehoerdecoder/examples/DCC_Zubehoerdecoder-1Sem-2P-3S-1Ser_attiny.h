@@ -64,15 +64,15 @@ const byte modePin      =   PIN_PA7;     // Anzeige Betriebszustand (Normal/Prog
                     // Pro Softled werden 19 Byte benötigt
 #endif
 
-// #define OUT1 PIN_PC0
-// #define OUT2 PIN_PC1
-// #define OUT3 PIN_PC2
-// #define OUT4 PIN_PC3
-// #define OUT5 PIN_PA1
-// #define OUT6 PIN_PA2
-// #define OUT7 PIN_PA3
-// #define OUT8 PIN_PB0
-// #define OUT9 PIN_PB1
+// #define OUT1 PIN_PC0  // Physical pin 10 / chip pin 12
+// #define OUT2 PIN_PC1  // Physical pin 11 / chip pin 13
+// #define OUT3 PIN_PC2  // Physical pin 12 / chip pin 14
+// #define OUT4 PIN_PC3  // Physical pin 15 / chip pin 15
+// #define OUT5 PIN_PA1  // Physical pin 14 / chip pin 17
+// #define OUT6 PIN_PA2  // Physical pin 15 / chip pin 18
+// #define OUT7 PIN_PA3  // Physical pin 16 / chip pin 19
+// #define OUT8 PIN_PB0  // Physical pin 9 / chip pin 11
+// #define OUT9 PIN_PB1  // Physical pin 8 / chip pin 10
 
 #define OUT1 PIN_PB0  // Physical pin 9 / chip pin 11
 #define OUT2 PIN_PC0  // Physical pin 10 / chip pin 12
@@ -84,19 +84,20 @@ const byte modePin      =   PIN_PA7;     // Anzeige Betriebszustand (Normal/Prog
 #define OUT8 PIN_PA3  // Physical pin 16 / chip pin 19
 #define OUT9 PIN_PB1  // Physical pin 8 / chip pin 10
 
-#define SERVOMOD    SAUTOOFF|NOPOSCHK|SDIRECT     
+#define SERVOMOD    SAUTOOFF|NOPOSCHK|SDIRECT  
+#define SEMAMOD     SAUTOOFF // | SINVERT
 
-const byte iniTyp[]     =   { FSERVO,   FSERVO,   FSERVO,  FSIGNAL2,  FSIGNAL2,  FSIGNAL2,  FSERIAL };//FSTATIC };
-const byte out1Pins[]   =   {   OUT1,     OUT2,     OUT3,      OUT4,      OUT6,      OUT8,       NC };// DIMMER };
-const byte out2Pins[]   =   {     NC,       NC,       NC,      OUT5,      OUT7,      OUT9,       NC };//     NC };
-const byte out3Pins[]   =   {     NC,       NC,       NC,        NC,        NC,        NC,       NC };//     NC }; 
+const byte iniTyp[]     =   { FSEMA,    FSERVO,   FSERVO,  FSIGNAL2,  FSIGNAL2,  FSIGNAL2,  FSERIAL };
+const byte out1Pins[]   =   {   OUT1,     OUT2,     OUT3,      OUT4,      OUT6,      OUT8,       NC };
+const byte out2Pins[]   =   {     NC,       NC,       NC,      OUT5,      OUT7,      OUT9,       NC };
+const byte out3Pins[]   =   {     NC,       NC,       NC,        NC,        NC,        NC,       NC };
                                                                                                                                   
 const byte iniCVx[10][sizeof(iniTyp)]  = {
-/* iniFmode (CV120,130,..*/ { SERVOMOD, SERVOMOD, SERVOMOD, 0b1000000, 0b1000000,  0b1000000, 0b0000001  },
-/* iniPar1 (CV121,131,..*/  {       128,       47,       130,  0b000001,   0b000001,  0b000001,         1  },
-/* iniPar2 (CV122,132,..*/  {       30,       144,       55,  0b000010,   0b000011,  0b000010,         0  },
-/* iniPar3 (CV123,133,..*/  {      100,      100,      100,         0,          0,         0,       255  },
-/* iniPar4 (CV124,134,..*/  {        0,        0,        0,         0,          0,         0,        15  }, 
+/* iniFmode (CV120,130,..*/ { SEMAMOD,  SERVOMOD, SERVOMOD, 0b1000000, 0b1000000,  0b1000000, 0b0000001  },
+/* iniPar1 (CV121,131,..*/  {       58,       30,       30,  0b000001,   0b000001,  0b000001,         1  },
+/* iniPar2 (CV122,132,..*/  {      120,      118,      118,  0b000010,   0b000011,  0b000010,         0  },
+/* iniPar3 (CV123,133,..*/  {       10,      100,      100,         0,          0,         0,       255  },
+/* iniPar4 (CV124,134,..*/  {       10,        0,        0,         0,          0,         0,       124  }, 
 /* iniPar5 (CV125,135,..*/  {        0,        0,        0,         0,          0,         0,         0  },
 /* iniPar6 (CV126,136,..*/  {        0,        0,        0,         0,          0,         0,         0  },
 /* iniPar7 (CV127,137,..*/  {        0,        0,        0,         0,          0,         0,         0  },

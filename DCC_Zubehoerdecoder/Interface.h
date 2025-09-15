@@ -3,12 +3,22 @@
 **summarized, and neutral calls for the functionalities in the sketch are provided.
 */
 
+
+/*
+
+************
+
+NEED TO FIX ADDRESS SETTING - CURRENTLY SET AT 201!!
+
+*/
+
 #ifndef INTERFACE_H
 #define INTERFACE_H
 
 #include <inttypes.h>
 #include <Arduino.h>
 #include "src/DebugDefs.h"
+#include "code_configs.h"
 
 //#define LOCONET //If this is commented out, a DCC interface will be integrated
 //################################################## ################################################## ##
@@ -99,6 +109,7 @@ uint8_t ifc_getCV( uint16_t address );
 void ifc_setCV( uint16_t address, uint8_t value );
 uint16_t ifc_getAddr();
 void ifc_process();
+bool ifc_decoderWritesEnabled();
 
 //====================== general help functions ========================== ========
 //Hide unused (NC) ports

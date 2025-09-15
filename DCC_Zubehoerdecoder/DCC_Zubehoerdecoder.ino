@@ -40,14 +40,11 @@ Assignment of the output states to the signal state can be configured.
 // #define KONFIG_FILE "../../MoBaTool/config_files/signals/headers/DCC_Zubehoerdecoder-LS-3led-1servo-attiny.h"
 //  #define KONFIG_FILE "../../MoBaTool/config_files/signals/headers/DCC_Zubehoerdecoder-2P-4S-attiny.h"
 #define KONFIG_FILE "examples/DCC_Zubehoerdecoder-3P-3S-1Ser_attiny.h"
+// #define KONFIG_FILE "examples/DCC_Zubehoerdecoder-1Sem-2P-3S-1Ser_attiny.h"
 
 // #define KONFIG_FILE "../../MoBaTool/config_files/points/headers/DCC_Zubehoerdecoder_8-solenoid_avr.h"
 
-#define DEBUG_GTI
-// #define SIGNALDBG
-#define EXTENDED_CV
-
-#define CV_INIT_MODE
+#include "code_configs.h"
 
 // #include <Servo_megaTinyCore.h> ??? do i need this somewhere
 
@@ -55,7 +52,7 @@ Assignment of the output states to the signal state can be configured.
 #ifdef __AVR_MEGA__
 #include <avr/wdt.h>    //for soft reset (via watchdog)
 #endif
-#ifdef MEHGATINYCORE
+#ifdef MEGATINYCORE
 #include <avr/io.h>
 #endif
 // #include <algorithm> 
@@ -88,7 +85,8 @@ Assignment of the output states to the signal state can be configured.
 #define F2SERVO     8//Class for controlling 2 servos via one address
 #define FSTATIC3    9//3 outputs can be switched on or off statically/flashing
 #define FSERIAL     10//Serial output for coprocessor. Function defined by cvs
-#define FMAX        10  
+#define FSEMA       11//Semaphore servo output
+#define FMAX        11 
 
 //--------------------------------------
 //Flags for iniMode:
@@ -141,6 +139,8 @@ CVPair FactoryDefaultCVs [] =
   {cvVersionId, DCC_DECODER_VERSION_ID},
   {cvManufactId, manIdValue},
   {cv29Config, config29Value},
+  {cv15lock, cv15Value},
+  {cv16lock, cv16Value},
 
 };
 
@@ -151,6 +151,7 @@ byte rocoOffs;//4 for ROCO addressing, 0 otherwise
 word weichenAddr;//Address of the 1st switch (of the entire block)
 byte ioPins[PPWA*weichenZahl];//all defined IO's in a linear array
 bool serialStarted = false;
+bool decoderLock = true;
 //Structure for 2 servos at one address (F2SERVO)
 typedef struct {
     Fservo  *servo1;
@@ -168,9 +169,10 @@ union {//There is an array for each class, but they are on top of each other bec
     Fstatic *stat[weichenZahl];   
     Fsignal *sig[weichenZahl];
     Fserial *ser[weichenZahl];
+    Fsema   *sema[weichenZahl];
 }Fptr;    
 
-Fservo *AdjServo = NULL ;//Pointer to servo to be adjusted
+Fservo *AdjServo = NULL ;//Pointer to servo to be adjusted (only for encoder)
 //Type identifier for connected addresses (addresses with subsequent entries for servos or light signals
 //This identifier is only ever entered at the basic address
 enum combine_t:byte { NOCOM,//no following address available, default value
@@ -207,6 +209,7 @@ MoToTimer idLoconet;
 //################################################## #########################
 
 void setup() {
+    // delay(2000);
     boolean iniFlg = false;
 #ifdef __STM32F1__
    disableDebugPorts();//Enable JTAG and SW ports
@@ -232,7 +235,7 @@ void setup() {
 //Programming mode, automatic address recognition
         progMode = ADDRMODE;
     }else{
-        progMode = NORMALMODE;
+        progMode = POMMODE;
         iniFlg = true;
     }
     #else
@@ -274,7 +277,7 @@ void setup() {
         #ifdef LOCONET
            DB_PRINT(  ">>>>>>>>>> Neustart: (SV45/47): 0x%x 0x%x ", ifc_getCV( CV_INIVAL ), ifc_getCV( CV_MODEVAL ) );
         #else
-           DB_PRINT(  ">>>>>>>>>> Neustart: (CV45/47): 0x%x 0x%x ", ifc_getCV( CV_INIVAL ), ifc_getCV( CV_MODEVAL ) );
+           DB_PRINT(  ">>>>>>>>>> Neustart: (CV45/47): 0x%x 0x%x ", ifc_getCV( CV_INIVAL ), ifc_getCV( CV_MODEVAL ) ); //0x60
         #endif    
 
      Serial.print( "Betr:" ); Serial.print(temp);Serial.print(" -> Mode=" );
@@ -333,7 +336,8 @@ void setup() {
 //Read operating mode
     opMode = ifc_getCV( CV_MODEVAL) &0x0f;
     rocoOffs = ( opMode & ROCOADDR ) ? 4 : 0;
-    DB_PRINT( "opMode=%d , rocoOffs=%d", opMode, rocoOffs );
+    decoderLock = ifc_decoderWritesEnabled();
+    DB_PRINT( "opMode=%d , rocoOffs=%d, locked=%s", opMode, rocoOffs, decoderLock ? "No":"Yes" );
 
 //Encoder init
     IniEncoder();
@@ -359,6 +363,9 @@ void setup() {
         byte vsIx = 0;//Preset the distant signal index on the mast to 0 (no distant signal).
         adressTyp[wIx] = NOCOM;//Default is no follow-on address
         switch (iniTyp[wIx] )  {
+          case FSEMA:
+            Fptr.sema[wIx] = new Fsema( cvParAdr(wIx,0) , &ioPins[wIx*PPWA], 2 );
+            break;  
           case FSERVO:
 //Check whether servo combination (following type = FSERVO0)
             if ( wIx+1<weichenZahl && iniTyp[wIx+1] == FSERVO0 ){
@@ -486,6 +493,9 @@ loopCnt = 0;
 //Control outputs
     for ( byte i=0; i<weichenZahl; i++ ) {
         switch ( iniTyp[i]  ) {
+          case FSEMA://Semaphore servo output
+            Fptr.sema[i]->process();
+            break;
           case FSERVO://Control servo outputs ------------------------------------------------
             Fptr.servo[i]->process();
             if ( adressTyp[i] == SERVO_DOUBLE ) {
@@ -551,6 +561,9 @@ void setPosition( byte wIx, byte sollWert, byte state = 0 ) {
 //state is only evaluated by FCOIL
     DB_PRINT("Set wIx=%d, soll=%d, state=%d", wIx, sollWert, state);
     switch ( iniTyp[wIx] ) {
+        case FSEMA:
+          Fptr.sema[wIx]->set( sollWert );
+          break;
         case FSERVO:
 //check whether there are two servos to be controlled in combination
           if ( adressTyp[wIx] == SERVO_DOUBLE ) {
@@ -705,11 +718,57 @@ void chkServoCv( Fservo *servoP, uint8_t Value, int8_t parNr, int8_t sollOffs ) 
            DBSV_PRINT( "Servo %4x, Par/Ofs.%d/%d , auf Pos. %d umstellen", (unsigned int)servoP, parNr, sollOffs, Value );
            servoP->set( parNr+sollOffs );
         }
-    }
-  
+    }  
 }
+
+//Subfunction for CVChange: Check changes to servo CVs
+void chkSemaCv( Fsema *semaP, uint8_t Value, int8_t parNr, int8_t sollOffs ) {
+//parNr= 0: Pos 0, 1:Pos1, 2:Speed, 3:speed1 1, 
+//which parameter of the servo was changed?
+    if ( parNr >= 0 && parNr < 4 ) {
+//it is an end position or speed value
+        if ( parNr == 2  ) {
+//the speed of the servo was changed
+            if ( sollOffs == 0 ) {
+//with 4-position servo at the 2nd address (shouldOffs == 2) no speed value.
+                DBSV_PRINT( "Sema %4x, Par/Ofs.%d/%d , Speed. %d neu einstellen", (unsigned int)semaP, parNr, sollOffs, Value );
+                semaP->adjust( ADJSPEED, Value );
+            }
+        }
+        else if ( parNr == 3  ) {
+//the speed of the servo was changed
+            if ( sollOffs == 0 ) {
+//with 4-position servo at the 2nd address (shouldOffs == 2) no speed value.
+                DBSV_PRINT( "Sema %4x, Par/Ofs.%d/%d , Speed. %d neu einstellen", (unsigned int)semaP, parNr, sollOffs, Value );
+                semaP->adjust( ADJSPEED1, Value );
+            }
+        }   
+        else if (  parNr+sollOffs == semaP->getPos() ){
+//This is the current position of the servo,
+//Reposition servo
+           DBSV_PRINT( "Sema %4x, Par/Ofs.%d/%d , akt Pos. %d justieren", (unsigned int)semaP, parNr, sollOffs, Value );
+           semaP->adjust( ADJPOS, Value );
+        } 
+        else  {
+//is not the current position of the servo, change the servo
+           DBSV_PRINT( "Sema %4x, Par/Ofs.%d/%d , auf Pos. %d umstellen", (unsigned int)semaP, parNr, sollOffs, Value );
+           semaP->set( parNr+sollOffs );
+        }
+    }  
+}
+
 //Called after a CV value has been changed
 void ifc_notifyCVChange( uint16_t CvAddr, uint8_t Value ) {
+DB_PRINT( "neu: CV%d=%d ", CvAddr, Value);
+#if defined (CV_INIT_MODE)
+    if ( progMode == NORMALMODE ) {
+        if (CvAddr ==  CV_INIMOD ){ 
+            ifc_setCV( CV_INIMOD, Value );    
+            softReset();
+        } 
+    }
+    else { 
+#endif
     if ( !localCV ) {
 //CV was changed via nmraDCC. If this is an active servo position, then the servo position
 //adjust accordingly, also if the speed has been changed.
@@ -745,6 +804,9 @@ void ifc_notifyCVChange( uint16_t CvAddr, uint8_t Value ) {
                   chkServoCv( Fptr.servo[wIx], Value, parIx-PAR1, 0 );
                 }
                 break;
+             case FSEMA:
+                chkSemaCv( Fptr.sema[wIx], Value, parIx-PAR1, 0 );
+                break;
             }
         }
         #ifdef DEBUG
@@ -777,7 +839,7 @@ void ifc_notifyCVChange( uint16_t CvAddr, uint8_t Value ) {
 
         if (CvAddr ==  CV_INIMOD ){
             ifc_setCV( CV_INIMOD, Value );    
-            softReset();
+            // softReset();
         } 
 
         #ifdef LOCONET
@@ -789,6 +851,9 @@ void ifc_notifyCVChange( uint16_t CvAddr, uint8_t Value ) {
         #endif
         localCV=false;
     }
+#if defined (CV_INIT_MODE)  
+    }
+#endif
 }    
 //-----------------------------------------------------
 void ifc_notifyCVResetFactoryDefault(void) {
@@ -825,7 +890,7 @@ void iniCv( byte mode ) {
     ifc_setCV( (int) CV_INIVAL, VALIDFLG );
     ifc_setCV( (int) CV_MODEVAL, VALIDFLG | (iniMode&0xf) );
     ifc_setCV( (int) CV_ADRZAHL, weichenZahl );
-    ifc_setCV( (int) CV_INIMOD, NORMALMODE );
+    ifc_setCV( (int) CV_INIMOD, POMMODE );
 //Function-specific CV's
     for ( byte i = 0; i<weichenZahl; i++ ) {
         DB_PRINT("fktSpezCv: %d,Typ=%d", i, iniTyp[i] );
@@ -1023,6 +1088,7 @@ void ChkAdjEncode( byte WIndex, byte dccSoll ){
 void setWeichenAddr(void) {
 //Decoder is always in output address mode
         weichenAddr = ifc_getAddr( );
+        // weichenAddr = 201;
 /*else
 softAddr = (ifc_getAddr( )-1)*4 +1 + rocoOffs ;*/
     DB_PRINT("setWadr: getAdr=%d, wAdr=%d", ifc_getAddr(), weichenAddr );

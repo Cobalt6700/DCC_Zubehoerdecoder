@@ -6,6 +6,8 @@
 */
 #include <MobaTools.h>
 #include "../Interface.h"
+#include "../code_configs.h"
+
 
 #define PPWA 3//Number of pins per switch address
 //Offset of the CV address for the function-specific CV values
@@ -39,6 +41,78 @@ void _pinMode( byte port, byte mode );
 void _digitalWrite( byte port, byte state ) ;
 */
 //========================= Function classes ======================= =================
+
+//----------------------FSEMA---------------------------------------------------------
+//Flags for CV 'MODE'
+  #define SAUTOOFF 0x01//Pulses are switched off after reaching the end position
+// #define SDIRECT  0x02//The servo also responds to a switching command during movement
+//#define NOPOSCHK 0x08//The outputs also respond to a command if the current
+//#define SAUTOBACK 0x04//Servo automatically returns to its initial position (after time has elapsed)
+  #define SINVERT 0x80//Invert the servo curves for Upper Quadrant (UQ) or Lower Quadrant (LQ)
+ 
+ #define ANGLES_IN_US
+ #define TEST_CURVE
+
+#include "../semaphore_curves.h"
+class Fsema {
+  public:
+    Fsema( int cvAdr, uint8_t pins[], uint8_t posZahl, int8_t modeOffs=MODE );
+    void process();
+    void set( uint8_t sollWert );//received new switching command
+    bool isMoving ();//Query whether servo is moving
+    uint8_t getPos();//current position number of the servo
+    uint8_t getCvPos();//Determine the CV value for the current position
+    void adjust( uint8_t mode, uint8_t value );//Change servo parameters
+        #define ADJPOS		0//for end-age adjustment: value = new position
+        #define ADJPOSEND	1//Adopt new end position in CV
+        #define ADJSPEED	2//Change servo speed
+        #define ADJSPEED1	3//Change servo speed
+        #define ADJINVERT   4//invert the servo curves for Upper Quadrant (UQ) or Lower Quadrant (LQ)
+    void center( uint8_t mode );
+        #define ABSOLUT	 0//Set servo to 90°
+        #define RELATIVE 1//Center position between the programmed end points
+    uint16_t degreesToMicroseconds(float degrees);
+    uint8_t getRandCurve();
+    float getInterpolatedValue(uint8_t curve, uint8_t aspect, float position);
+    float getInterpolatedValue();
+
+  private:
+    //offset for the CV's of the position values
+    static const uint8_t posOffset[6];
+    MoToServo  _semaServo;
+    // MoToTimer _animationTimer;
+    // MoToTimer _sequenceTimer;
+    MoToTimebase _animationTimebase;
+    int16_t _cvAdr = 0;//Address of the CV block with the function parameters
+    int8_t   _modeOffs = 0;//Offset of the CV address for the mode byte. Normally this is 0
+    int8_t  _parOffs = 0;//Offset of the CV address for the position and speed parameters.
+
+    uint8_t *_outP;//pin of the output
+        #define SEMAP 0
+    uint8_t _posZahl;//Number of positions that can be approached (2 or 4)
+    uint8_t _sollPos;//Target position of the servo (0...3)
+    uint8_t _istPos;//is the position of the servo
+
+    uint16_t _currentAngle;
+    uint16_t _prevAngle;
+    uint16_t _startAngle;
+    uint16_t _endAngle;
+    int16_t _sweepAngle;
+    uint8_t _animationNumber;
+    uint16_t _steps;
+    uint16_t _currentStep;
+    uint8_t _curve;
+    uint8_t _curveIndex[2];
+    // uint8_t _dangerCurve;
+    // uint8_t _clearCurve;
+    unsigned long _stepTime;
+    struct {
+        bool moving   :1 ;//Servo in motion
+        bool sollAct  :1 ;//Setpoint has not yet been adopted
+        bool semaInv  :1 ;//Sema is inverted for Upper Quadrant (UQ) or Lower Quadrant (LQ)
+    } _flags;
+
+};
 
 //----------------------FSERIAL ----------------------------------------------------------
 //Flags for CV 'MODE':
@@ -182,7 +256,7 @@ class Fservo {
     } _flags;
     uint8_t _spd_up;
     uint8_t _spd_dwn; 
-    bool _dualspd = true;
+    bool _dualspd = false;
  };
 //-----------------------SIGNAL -------------------------------------------
 //Constant for light signal function
@@ -197,8 +271,8 @@ const byte  LSMODE=0,                 BILD1=1,              BILD2=2, VORSIG=3,  
             SOFTMASK3=0+(2*CV_BLKLEN),BILD5=1+(2*CV_BLKLEN),BILD6=2+(2*CV_BLKLEN),//Parameter 3. Address
                                      BLINK5=5+(2*CV_BLKLEN),BLINK6=5+(2*CV_BLKLEN);
             
-#define SIG_DARK_TIME   400//Time between darkening and showing the new signal image
-#define SIG_RISETIME    400//Fade up/fade out time
+#define SIG_DARK_TIME   800//400//Time between darkening and showing the new signal image
+#define SIG_RISETIME    220//300//400//Fade up/fade out time
  
  class Fsignal {
     public:

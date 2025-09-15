@@ -35,6 +35,280 @@ void _digitalWrite( byte port, byte state ) {
 }
 //######################### Class definitions ######################## #########
 
+const uint8_t Fsema::posOffset[6]={PAR1,PAR2,PAR3,PAR4,PAR5,PAR6 } ;
+int animationNumber[2] = {0,0};
+
+//-----------------------------FSEMA -------------------------------------------
+//Control of servo drives for semaphore signals
+Fsema::Fsema( int cvAdr, uint8_t pins[], uint8_t posZahl, int8_t modeOffs ) {
+//Constructor of the Servo class
+    _outP = pins;
+    _posZahl = posZahl;
+    _cvAdr = cvAdr;
+    _modeOffs = modeOffs;
+    _parOffs = 0;
+      //Set up turnout servo
+      if ( _outP[SEMAP] != NC ) {
+          _semaServo.attach( _outP[SEMAP], getParam( _modeOffs ) & SAUTOOFF );
+          _semaServo.setSpeed( 0 );
+      }
+
+//Initiate and output servo values ​​and relay output
+    _istPos = getParam( STATE );
+    _sollPos = _istPos ;
+    _flags.semaInv = getParam( _modeOffs ) & SINVERT;
+
+    if (_flags.semaInv ){
+        _curveIndex[0] = 1;
+        _curveIndex[1] = 0;
+    }
+    else{
+        _curveIndex[0] = 0;
+        _curveIndex[1] = 1;
+    }
+
+    _currentAngle = getParam(  posOffset[_istPos]+_parOffs );
+    _prevAngle = _currentAngle;
+    _semaServo.write( getParam(  posOffset[_istPos]+_parOffs ) );
+
+    _flags.sollAct = false;
+    _flags.moving = false;
+
+    DBSV_PRINT_("SemaObj@%04x ", (uint32_t)this );
+    DBSV_PRINT("Pin=%d, cvAdr=%d, modeOffs=%d Inv=%d", _outP[0], _cvAdr, _modeOffs, _flags.semaInv );
+    DBSV_PRINT("ModeByte=%02x", getParam( _modeOffs ) ) ;
+
+}
+
+//..............
+void Fsema::set( uint8_t newPos ) {
+//Command 'set servo' received
+    if ( newPos >= _posZahl ) newPos = _posZahl-1;//maximum number of position values
+    _sollPos = newPos;
+    DBSV_PRINT( "Sema.set(%d): new:%d, soll:%d, max:%d", _outP[0], newPos, _sollPos, _posZahl );
+    _flags.sollAct = true;
+}
+
+uint16_t Fsema::degreesToMicroseconds(float degrees) {
+    float us1 = degrees / 180; // SERVO_RANGE_DEGREES eg 60/180 = 0.33`
+    float us2 = us1 * 1600; // servoRangeMicroseconds eg 0.33` * 1600 = 528
+    int us3 = 700 + us2; //SERVO_MICROSECONDS_MIN eg 700 + 528 = 1228
+    return us3;
+    // return SERVO_MICROSECONDS_MIN + ((degrees / SERVO_RANGE_DEGREES) * servoRangeMicroseconds);
+}
+
+uint8_t Fsema::getRandCurve(){
+    int random = rand();
+    DBSV_PRINT_("Rand:%d", random);
+    uint8_t randCurve =random % 5;
+    DBSV_PRINT(" RandCurve:%d", randCurve);
+    switch (randCurve) {
+        case 0:
+        case 1:
+        case 2:
+            return randCurve;
+            break;
+        case 3:
+        case 4:
+        default:
+            return 3;
+            break;
+    }
+}
+
+float Fsema::getInterpolatedValue() {
+  // Get the array size for the current aspect
+  float position = (float) _currentStep / _steps; // eg 100 / 159 = 0.6289
+  uint16_t arraySize = _steps + 1; //160
+
+  // Calculate the exact position in the array
+  float exactIndex = position * arraySize; // eg 0.6289 * 160 = 100.624
+  int lowerIndex = (int)exactIndex; // eg 100
+
+  // Handle edge cases to prevent array out-of-bounds
+  // Fix the signed/unsigned comparison by casting
+  if (lowerIndex >= static_cast<int>(arraySize - 1)) {
+    lowerIndex = static_cast<int>(arraySize - 2);
+  }
+
+  int upperIndex = lowerIndex + 1; //101 
+  float fraction = exactIndex - lowerIndex; // eg 100 - 100 = 0
+
+  // Get values from the appropriate array using the pointer array
+  // Since megaTinyCore automatically puts const arrays in PROGMEM, we can access directly
+  uint16_t lowerValue = bounceInterpolators[_curveIndex[_sollPos]][_curve][lowerIndex]; //eg 100 = 69
+  uint16_t upperValue = bounceInterpolators[_curveIndex[_sollPos]][_curve][upperIndex]; //eg 101 = 70
+
+  // Linear interpolation between the two points
+  return (lowerValue + fraction * (upperValue - lowerValue) *0.01); // (69 + 0 * (70 - 69) *0.01) = 69
+}
+
+//..............
+void Fsema::process() {
+//Check the changeover process
+//This method must be called in every loop() iteration
+
+    if ( _flags.moving ) {
+        if ( _animationTimebase.tick() ) {
+//Switch is currently not set, monitor switching point relay and end of movement
+            if ( _currentStep <= _steps ) {
+            //animateServoFixedCurveTimer(targetAspect, movementCurve);
+                // Get interpolated value based on current step and total steps
+                float interpolatedSweepFraction = bounceInterpolators[_curveIndex[_sollPos]][_curve][_currentStep] * 0.01;
+                // float interpolatedSweepFraction = getInterpolatedValue();    
+                // Serial.print("InterSweepFrac:");
+                // Serial.print(interpolatedSweepFraction);
+                // DBSV_PRINT(" Soll: %d, curve: %d, cStep: %d ", _sollPos,_curve, _currentStep );
+                _currentAngle = _startAngle + (_sweepAngle * interpolatedSweepFraction);
+                #if defined (ANGLES_IN_US)
+                    uint16_t degreesTous = _currentAngle;
+                #else
+                    uint16_t degreesTous = degreesToMicroseconds(_currentAngle);
+                #endif
+//Check to make sure the angle is different from the previous angle
+                if (_currentAngle != _prevAngle){
+                    _semaServo.write(degreesTous);
+                    DBANG_PRINT_("Sema-GOwr: Step: %03d, Angle=%03d, us=%04d ", _currentStep, _currentAngle, degreesTous );
+                    #if defined (ANGLEDBG)
+                        Serial.print("InSwFr:");
+                        Serial.println(interpolatedSweepFraction);
+                    #endif
+                }
+                else{
+                    DBANG_PRINT_("Sema-NOwr: Step: %03d, Angle=%03d, us=%04d ", _currentStep, _currentAngle, degreesTous );
+                    #if defined (ANGLEDBG)
+                        Serial.print("InSwFr:");
+                        Serial.println(interpolatedSweepFraction);
+                    #endif
+                }
+//Increment the step and save the previous angle
+                _currentStep++;
+                _prevAngle = _currentAngle;
+
+                if ( _currentStep > _steps ) {
+//Movement completed, clear 'MOVING' bit and save position to CV
+                _currentStep = 0;
+                _flags.moving = false;
+                _flags.sollAct = false;
+                _animationTimebase.stop();
+//Save current location without highway
+                setState( _istPos );
+                DBSV_PRINT("Move Complete!");
+                }
+            }
+        }
+    }
+    //else if ( _flags.sollAct  && (_sollPos != _istPos || (getParam( _modeOffs) & NOPOSCHK))  ) {
+    else if ( _flags.sollAct  && (_sollPos != _istPos ) && !isMoving() ) { // currently no change mid movement
+//Switch needs to be changed
+        if (_sollPos == 0 || _sollPos == 1){
+//Check to make sure the aspect is valid
+            #if defined (TEST_CURVE)
+                if(animationNumber[_sollPos] > 3){ // just for testing
+                    animationNumber[_sollPos] = 0; //
+                }                               // just for testing
+                DBSV_PRINT("Setting animation _sollPos:%d, curve:%d ",_sollPos, animationNumber[_sollPos]);
+                _curve = animationNumber[_sollPos];
+                animationNumber[_sollPos] += 1;
+            #else
+//Set the curve to a random value
+                // _curve = rand() % 4;
+                _curve = getRandCurve();
+                DBSV_PRINT("Setting animation _sollPos:%d, curve:%d ",_sollPos, _curve);
+            #endif
+//Get the angles from the CV that we need to move between
+                #if defined (ANGLES_IN_US)
+                    _startAngle = degreesToMicroseconds(getParam( posOffset[_istPos] ));
+                    _endAngle = degreesToMicroseconds(getParam( posOffset[_sollPos] ));
+                #else
+                    _startAngle = getParam( posOffset[_istPos] );
+                    _endAngle = getParam( posOffset[_sollPos] );
+                #endif
+                _sweepAngle = _endAngle - _startAngle;
+//Get the step time from the CV
+                if (_sollPos == 0) _stepTime = getParam( PAR3 );
+                else               _stepTime = getParam( PAR4 );
+//Calculate steps based on the size of the bounceInterpolator array
+//_curveIndex allows us to have either a UQ or LQ sigal by using the right animations for
+// danger and clear
+                _steps = bounceInterpolatorSteps[_curveIndex[_sollPos]];
+                DBSV_PRINT("_curveIndex[_sollPos]:%d",_curveIndex[_sollPos] );
+                _currentStep = 0;
+//Set the timebase and start the timer
+                _animationTimebase.setBasetime(_stepTime);
+                _animationTimebase.start();
+                _istPos = _sollPos;//Actual value to setpoint
+                _flags.moving = true;//and set MOVING flag.
+            DBSV_PRINT("Sema Move sA=%d, eA=%d, swA=%d, sTime=%lu, st=%d, cur=%d", _startAngle, _endAngle, _sweepAngle, _stepTime, _steps, _curve  );
+        }
+        else{
+//Invalid target aspect
+            DBSV_PRINT("Invalid target aspect" );
+            _flags.sollAct = false;
+        }
+    }
+
+}
+//..............
+bool Fsema::isMoving () {
+//Query whether servo is moving
+    return _currentStep < 0;
+}
+//..............
+uint8_t Fsema::getPos(){
+//determine the current position of the servo
+    return _istPos;
+}
+//..............
+uint8_t Fsema::getCvPos(){
+//Determine the CV value for the current position of the servo
+    return getParam( posOffset[_sollPos]+_parOffs );
+}
+//..............
+void Fsema::adjust( uint8_t mode, uint8_t value ) {
+//Change servo parameters
+    DBSV_PRINT( "adjust: mode=%d, val=%d", mode, value );
+    switch ( mode ) {
+      case ADJPOSEND:
+//Save adjustment value in the CV of the current position
+        setParam( posOffset[_istPos]+_parOffs, value );
+//no break, because the soft servo is also set to this position.
+        [[fallthrough]];
+      case ADJPOS:{
+        uint16_t adjUs = degreesToMicroseconds(value);
+        _semaServo.write( adjUs );
+        // _semaServo.write( value );
+        }
+        break;
+      case ADJSPEED:
+        setParam( PAR3+_parOffs, value );
+        // _semaServo.setSpeed( value );
+        DBSV_PRINT("AdjSpeed0, %04X = %d ( CV %d ) ", (uint16_t)this, value, PAR3 );
+        break;
+    case ADJSPEED1:
+        setParam( PAR4+_parOffs, value );
+        // _semaServo.setSpeed( value );
+        DBSV_PRINT("AdjSpeed1, %04X = %d ( CV %d ) ", (uint16_t)this, value, PAR4 );
+        break;
+    //   case ADJINVERT:
+    //     int8_t oldval = getParam( MODE );
+    //     int8_t newval = oldval | value;
+    //     setParam( MODE, newval );
+    //     DBSV_PRINT("AdjInv, %04X = %d ( CV %d ) ", (uint16_t)this, newval, MODE );
+    //     break;
+    }
+}
+//..............
+void Fsema::center( uint8_t mode ){
+//Bring servo to center position
+    if ( mode == ABSOLUT) {
+//absolute center position (90°)
+        _semaServo.write(90);
+    } else if ( mode == RELATIVE ) {
+        _semaServo.write( getParam( PAR1)/2 + getParam( PAR2)/2 );
+    }
+}
+
 //----------------------FSERIAL ----------------------------------------------------------
 //Control of serial coprocessor
 
@@ -48,7 +322,7 @@ SESTRT 0x02//Start with output ON
 
 Fserial::Fserial( int cvAdr) {
 //Constructor of the class for static glow or flashing
-	byte modeOffs = 0;//In normal mode there is only one mode byte
+	[[maybe_unused]] byte modeOffs = 0;//In normal mode there is only one mode byte
     _cvAdr = cvAdr;
 
     DBSE_PRINT( "Fserial CV=%d, ",  _cvAdr );
@@ -258,7 +532,7 @@ Fstatic::Fstatic( int cvAdr, uint8_t ledP[], bool extended ) {
 //Set up output ports as softleds
             if ( _ledP[pNr] != NC ) {
                 _ledS[pNr] = new SoftLed;
-                byte att;
+                [[maybe_unused]] byte att;
                 int rise;
                 att=_ledS[pNr]->attach( _ledP[pNr] );
                 rise = (getParam(modeIx) >> 4) * 100;
